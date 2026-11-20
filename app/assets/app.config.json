@@ -1,0 +1,642 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-11-20T07:01:49Z",
+  "app": {
+    "id": "kmlab-toolbox",
+    "name": "kmlab",
+    "appName": "kmlab Toolbox",
+    "brandSub": "handmade workspace",
+    "pageTitle": "kmlab · 工具",
+    "icon": "assets/icon.svg",
+    "brand": "kmlab",
+    "tagline": "打开就能干活",
+    "theme": "paper",
+    "allowThemeOverride": true,
+    "bottomNav": [
+      {
+        "id": "recent",
+        "title": "最近",
+        "icon": "clock"
+      },
+      {
+        "id": "tools",
+        "title": "小工具",
+        "icon": "grid"
+      },
+      {
+        "id": "me",
+        "title": "我的",
+        "icon": "settings"
+      }
+    ],
+    "recent": {
+      "isDefaultTab": true,
+      "showGreeting": true,
+      "showTodayCount": true,
+      "showPinned": true,
+      "showResumeCard": true,
+      "showTimeline": true,
+      "timelineGroups": [
+        "今天",
+        "昨天",
+        "本周",
+        "更早"
+      ],
+      "maxTimelineItems": 30,
+      "emptyState": {
+        "showSuggested": true,
+        "suggestFrom": "featured",
+        "showLinkToTools": true
+      }
+    },
+    "home": {
+      "layout": "grid",
+      "columns": 2,
+      "showHero": false,
+      "showSearch": true,
+      "showRecent": false,
+      "showOfflineBadge": true,
+      "newBadgeDays": 7
+    },
+    "brandSource": {
+      "site": "kmlab_site",
+      "siteName": "kmlab_site/src/data/site.content.json → site.name",
+      "brandSub": "kmlab_site/src/data/site.content.json → header.brandSub",
+      "pageTitle": "kmlab_site/index.html → <title>",
+      "icon": "kmlab_site/public/favicon.svg",
+      "doodles": "kmlab_site/src/components/DoodleIcon.vue",
+      "categories": "kmlab_site/src/data/site.content.json → categories[]"
+    },
+    "icons": {
+      "source": "kmlab_site/src/components/DoodleIcon.vue",
+      "names": [
+        "checkin",
+        "water",
+        "money",
+        "pill",
+        "key",
+        "note",
+        "rocket",
+        "brain",
+        "box"
+      ],
+      "default": "box"
+    },
+    "tabs": [
+      {
+        "id": "all",
+        "title": "全部",
+        "icon": "grid"
+      },
+      {
+        "id": "life",
+        "title": "生活习惯",
+        "icon": "cup",
+        "color": "#6f9264"
+      },
+      {
+        "id": "productivity",
+        "title": "效率清单",
+        "icon": "check",
+        "color": "#3d6b8a"
+      },
+      {
+        "id": "knowledge",
+        "title": "知识索引",
+        "icon": "book",
+        "color": "#d9534f"
+      },
+      {
+        "id": "misc",
+        "title": "其他",
+        "icon": "box",
+        "color": "#8a6fa3"
+      }
+    ],
+    "storageManifest": "docs/STORAGE_KEYS.md"
+  },
+  "remote": {
+    "enabled": true,
+    "configUrl": "https://kmlab.tech/data/app.json",
+    "timeoutMs": 8000,
+    "refreshOnLaunch": true,
+    "hotReload": false,
+    "requireSignature": false
+  },
+  "tools": [
+    {
+      "id": "water",
+      "title": "每日喝水",
+      "subtitle": "饮水记录与提醒",
+      "icon": "water",
+      "color": "#6f9264",
+      "tab": "life",
+      "url": "https://kmlab.tech/h5_tools/index.html",
+      "offline": {
+        "enabled": true,
+        "path": "h5_tools/index.html",
+        "size": "601B"
+      },
+      "open": {
+        "mode": "webview",
+        "titleBar": true,
+        "pullToRefresh": true,
+        "chrome": "minimal",
+        "routeBackEnabled": false,
+        "backFallback": "home",
+        "overflowItems": [
+          "reload",
+          "copyLink",
+          "openInBrowser",
+          "share",
+          "fullscreen",
+          "pin",
+          "exportData",
+          "clearData",
+          "about",
+          "feedback"
+        ]
+      },
+      "featured": true,
+      "sort": 10,
+      "enabled": true,
+      "resume": {
+        "enabled": true,
+        "mode": "storage",
+        "storageKeys": [
+          "waterIntakeRecords",
+          "waterIntakeGoal"
+        ],
+        "extract": {
+          "kind": "countToday",
+          "key": "waterIntakeRecords",
+          "dateField": "timestamp",
+          "goalKey": "waterIntakeGoal",
+          "unit": "杯",
+          "template": "今天 {n} / {goal} {unit}"
+        },
+        "summary": "今天 {n} / {goal} 杯"
+      }
+    },
+    {
+      "id": "checkin",
+      "title": "打卡助手",
+      "subtitle": "每日益处 · 健康打卡",
+      "icon": "checkin",
+      "color": "#6f9264",
+      "tab": "life",
+      "url": "https://kmlab.tech/h5_tools/checkIn.html",
+      "offline": {
+        "enabled": true,
+        "path": "h5_tools/checkIn.html",
+        "size": "23K"
+      },
+      "open": {
+        "mode": "webview",
+        "titleBar": true,
+        "pullToRefresh": true,
+        "chrome": "minimal",
+        "routeBackEnabled": false,
+        "backFallback": "home",
+        "overflowItems": [
+          "reload",
+          "copyLink",
+          "openInBrowser",
+          "share",
+          "fullscreen",
+          "pin",
+          "exportData",
+          "clearData",
+          "about",
+          "feedback"
+        ]
+      },
+      "featured": true,
+      "sort": 20,
+      "enabled": true,
+      "resume": {
+        "enabled": true,
+        "mode": "storage",
+        "storageKeys": [
+          "checkin_records"
+        ],
+        "extract": {
+          "kind": "countDateMap",
+          "key": "checkin_records",
+          "path": null,
+          "unit": "次",
+          "template": "今天 {n} {unit}打卡"
+        },
+        "summary": "今天 {n} 次打卡"
+      }
+    },
+    {
+      "id": "medicine",
+      "title": "药品管家",
+      "subtitle": "还能用几天 · 何时该买",
+      "icon": "pill",
+      "color": "#6f9264",
+      "tab": "life",
+      "url": "https://kmlab.tech/h5_tools/medicine/index.html",
+      "offline": {
+        "enabled": true,
+        "path": "h5_tools/medicine/index.html",
+        "size": "45K"
+      },
+      "open": {
+        "mode": "webview",
+        "titleBar": true,
+        "pullToRefresh": true,
+        "chrome": "minimal",
+        "routeBackEnabled": false,
+        "backFallback": "home",
+        "overflowItems": [
+          "reload",
+          "copyLink",
+          "openInBrowser",
+          "share",
+          "fullscreen",
+          "pin",
+          "exportData",
+          "clearData",
+          "about",
+          "feedback"
+        ]
+      },
+      "sort": 30,
+      "enabled": true,
+      "resume": {
+        "enabled": true,
+        "mode": "storage",
+        "storageKeys": [
+          "medicine_tracker_v1"
+        ],
+        "extract": {
+          "kind": "count",
+          "key": "medicine_tracker_v1",
+          "path": "meds",
+          "unit": "种",
+          "template": "在管 {n} {unit}药"
+        },
+        "summary": "在管 {n} 种药"
+      }
+    },
+    {
+      "id": "whereismoney",
+      "title": "宝盒是怎样月光的",
+      "subtitle": "现金预测 · 看见月光红线",
+      "icon": "money",
+      "color": "#3d6b8a",
+      "tab": "productivity",
+      "url": "https://kmlab.tech/h5_tools/whereismoney/index.html",
+      "offline": {
+        "enabled": true,
+        "path": "h5_tools/whereismoney/index.html",
+        "size": "71K"
+      },
+      "open": {
+        "mode": "webview",
+        "titleBar": true,
+        "pullToRefresh": true,
+        "chrome": "minimal",
+        "routeBackEnabled": false,
+        "backFallback": "home",
+        "overflowItems": [
+          "reload",
+          "copyLink",
+          "openInBrowser",
+          "share",
+          "fullscreen",
+          "pin",
+          "exportData",
+          "clearData",
+          "about",
+          "feedback"
+        ]
+      },
+      "sort": 40,
+      "enabled": true,
+      "resume": {
+        "enabled": true,
+        "mode": "storage",
+        "storageKeys": [
+          "baobox.v1"
+        ],
+        "extract": {
+          "kind": "count",
+          "key": "baobox.v1",
+          "path": "installments",
+          "unit": "笔",
+          "template": "{n} {unit}分期待还"
+        },
+        "summary": "{n} 笔分期待还"
+      }
+    },
+    {
+      "id": "list",
+      "title": "任务管理",
+      "subtitle": "待办任务清单",
+      "icon": "note",
+      "color": "#3d6b8a",
+      "tab": "productivity",
+      "url": "https://kmlab.tech/h5_tools/list/index.html",
+      "offline": {
+        "enabled": true,
+        "path": "h5_tools/list/index.html",
+        "size": "714B"
+      },
+      "open": {
+        "mode": "webview",
+        "titleBar": true,
+        "pullToRefresh": true,
+        "chrome": "minimal",
+        "routeBackEnabled": false,
+        "backFallback": "home",
+        "overflowItems": [
+          "reload",
+          "copyLink",
+          "openInBrowser",
+          "share",
+          "fullscreen",
+          "pin",
+          "exportData",
+          "clearData",
+          "about",
+          "feedback"
+        ]
+      },
+      "sort": 50,
+      "enabled": true,
+      "resume": {
+        "enabled": true,
+        "mode": "storage",
+        "storageKeys": [
+          "todo-h5:v1"
+        ],
+        "extract": {
+          "kind": "count",
+          "key": "todo-h5:v1",
+          "path": "tasks",
+          "unit": "项",
+          "template": "待办 {n} {unit}"
+        },
+        "summary": "待办 {n} 项"
+      }
+    },
+    {
+      "id": "mindx",
+      "title": "脑力慢养",
+      "subtitle": "找一找 · 数口令 · 配一对",
+      "icon": "brain",
+      "color": "#8a6fa3",
+      "tab": "misc",
+      "url": "https://kmlab.tech/h5_tools/mindx/index.html",
+      "offline": {
+        "enabled": true,
+        "path": "h5_tools/mindx/index.html",
+        "size": "282K"
+      },
+      "open": {
+        "mode": "webview",
+        "titleBar": true,
+        "pullToRefresh": true,
+        "chrome": "immersive",
+        "routeBackEnabled": false,
+        "backFallback": "home",
+        "overflowItems": [
+          "fullscreen",
+          "copyLink",
+          "openInBrowser",
+          "share",
+          "exportData",
+          "importData",
+          "clearData",
+          "about",
+          "feedback"
+        ]
+      },
+      "featured": true,
+      "sort": 60,
+      "enabled": true,
+      "resume": {
+        "enabled": true,
+        "mode": "storage",
+        "storageKeys": [
+          "bf_settings",
+          "bf_progress",
+          "bf_daily",
+          "bf_level_pool",
+          "bf_flags"
+        ],
+        "extract": {
+          "kind": "lastGame",
+          "key": "bf_progress",
+          "gameField": "gameId",
+          "scoreField": "score",
+          "movesField": "moves",
+          "levelField": "level",
+          "names": {
+            "A": "找一找",
+            "B": "数口令",
+            "C": "配一对",
+            "D": "赶集",
+            "E": "数字找家"
+          },
+          "unit": "分",
+          "template": "上一局·{game}·{n} {unit}",
+          "templateMoves": "上一局·{game}·{n} 步",
+          "templateFallback": "上一局·{game}"
+        },
+        "summary": "上一局还没打完",
+        "idb": {
+          "name": "brainfit-db",
+          "store": "session_log"
+        },
+        "note": "摘要读 bf_progress（今天未打完的那一局）。游戏代码→中文名的映射来自线上 bundle 的 nl 表，放在配置里，App 不硬编码。"
+      }
+    },
+    {
+      "id": "feishu",
+      "title": "通往AGI之路 - 文章分类索引",
+      "subtitle": "AI 文章分类索引目录",
+      "icon": "rocket",
+      "color": "#d9534f",
+      "tab": "knowledge",
+      "url": "https://kmlab.tech/h5_tools/feishu.html",
+      "offline": {
+        "enabled": true,
+        "path": "h5_tools/feishu.html",
+        "size": "42K"
+      },
+      "open": {
+        "mode": "webview",
+        "titleBar": true,
+        "pullToRefresh": false,
+        "chrome": "auto",
+        "routeBackEnabled": false,
+        "backFallback": "home",
+        "overflowItems": [
+          "reload",
+          "copyLink",
+          "openInBrowser",
+          "share",
+          "fullscreen",
+          "pin",
+          "exportData",
+          "clearData",
+          "about",
+          "feedback"
+        ]
+      },
+      "sort": 70,
+      "enabled": true,
+      "resume": {
+        "enabled": false,
+        "mode": "none",
+        "storageKeys": [],
+        "extract": {
+          "kind": "none"
+        },
+        "summary": ""
+      }
+    },
+    {
+      "id": "jingtt",
+      "title": "井条条",
+      "subtitle": "语音记账 · 飞书备份",
+      "icon": "money",
+      "color": "#3d6b8a",
+      "tab": "productivity",
+      "url": "https://github.com/vee2046/jingtt",
+      "offline": {
+        "enabled": false
+      },
+      "open": {
+        "mode": "external",
+        "titleBar": false,
+        "chrome": "none",
+        "routeBackEnabled": false,
+        "backFallback": "home",
+        "overflowItems": [
+          "copyLink",
+          "openInBrowser",
+          "share",
+          "about"
+        ]
+      },
+      "sort": 80,
+      "enabled": true,
+      "resume": {
+        "enabled": false,
+        "mode": "none",
+        "storageKeys": [],
+        "extract": {
+          "kind": "none"
+        },
+        "summary": ""
+      }
+    }
+  ],
+  "webview": {
+    "userAgentSuffix": " KMApp/1.0",
+    "openExternalLinksInBrowser": true,
+    "interceptDownloads": true,
+    "downloadExtensions": [
+      "pdf",
+      "zip",
+      "apk",
+      "ipa",
+      "dmg",
+      "exe",
+      "csv",
+      "xls",
+      "xlsx",
+      "doc",
+      "docx",
+      "ppt",
+      "pptx",
+      "txt",
+      "md",
+      "rtf",
+      "png",
+      "jpg",
+      "jpeg",
+      "gif",
+      "webp",
+      "svg",
+      "mp3",
+      "wav",
+      "m4a",
+      "mp4",
+      "mov",
+      "webm",
+      "epub"
+    ],
+    "handleHardwareBack": true,
+    "routeBackEnabledDefault": false,
+    "backFallbackDefault": "home",
+    "errorRetryInWebview": true,
+    "chrome": {
+      "default": "minimal",
+      "options": [
+        "full",
+        "auto",
+        "minimal",
+        "immersive"
+      ],
+      "immersiveRevealGesture": "edge-swipe-down",
+      "immersiveTopHotZonePx": 28,
+      "immersiveFallbackButton": true,
+      "hideSystemBars": false,
+      "autoHideDelayMs": 1500,
+      "keepProgressBarInImmersive": false
+    },
+    "overflow": {
+      "sheetStyle": "grouped",
+      "confirmDanger": true,
+      "defaultItems": [
+        "reload",
+        "copyLink",
+        "openInBrowser",
+        "share",
+        "fullscreen",
+        "pin",
+        "exportData",
+        "importData",
+        "clearData",
+        "about",
+        "feedback"
+      ]
+    },
+    "dataTransfer": {
+      "exportFormat": "json",
+      "exportFileName": "km-{toolId}-backup-{yyyyMMdd}.json",
+      "exportDelivery": "share",
+      "clipboardFallback": true,
+      "importEnabled": true,
+      "importMaxSizeMb": 10,
+      "importConflictPolicy": "confirm",
+      "importMergeStrategy": "mergeByKey"
+    }
+  },
+  "bridge": {
+    "enabled": true,
+    "namespace": "KM",
+    "timeoutMs": 1500,
+    "permissions": [
+      "navigate",
+      "title",
+      "toast",
+      "share",
+      "storage",
+      "vibrate",
+      "theme"
+    ]
+  },
+  "about": {
+    "version": "0.1.0",
+    "repo": "https://github.com/vee2046/h5_tools",
+    "site": "https://kmlab.tech",
+    "note": "数据保存在本机浏览器存储，不上传服务器"
+  }
+}

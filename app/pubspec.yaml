@@ -1,0 +1,44 @@
+name: kmlab_toolbox
+description: "kmlab Toolbox —— 配置驱动主界面 + WebView 承载业务的极简 App 壳"
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.13.7
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  # WebView 容器
+  webview_flutter: 4.14.1
+  webview_flutter_android: 4.14.1
+  webview_flutter_wkwebview: 3.27.2
+  # 图标（kmlab doodle 线稿以内联 SVG 形式内嵌）
+  flutter_svg: 2.2.0
+  # 远端配置
+  http: 1.5.0
+  # 本地持久化（使用记录 / 快照 / last-good 配置）
+  shared_preferences: 2.5.3
+  path_provider: 2.1.5
+  # 数据导入导出
+  share_plus: 12.0.1
+  file_picker: 10.3.3
+  # 站外链接交给系统浏览器
+  url_launcher: 6.3.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  # 端上 UI 冒烟测试（必须写成 sdk: flutter —— pub.dev 上残留的 flutter_driver 是 null-unsafe 的废弃版）
+  integration_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    # 内置配置快照（随包发布，运行时再尝试拉远端）
+    - assets/app.config.json
