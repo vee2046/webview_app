@@ -1037,7 +1037,7 @@ Flutter 侧：小工具页列数 `app.home.columns`（默认 2，clamp 1~3）。
 
 | 里程碑 | 状态 | 已完成 | 待做 |
 |---|---|---|---|
-| **M1 骨架** | ✅ | Flutter 工程 + 配置加载器 + 最近页（首屏）+ 小工具页 + 我的页 + WebView 容器（minimal/full/auto）+ 返回键 + 品牌资产（图标/分类/工具名/doodle）+ **App 正式名 `kmlab Toolbox`** + 单元测试（116 个用例） | iOS / macOS 正式签名出包 |
+| **M1 骨架** | ✅ | Flutter 工程 + 配置加载器 + 最近页（首屏）+ 小工具页 + 我的页 + WebView 容器（minimal/full/auto）+ 返回键 + 品牌资产（图标/分类/工具名/doodle）+ **App 正式名 `kmlab Toolbox`** + 单元测试（121 个用例） | iOS / macOS 正式签名出包 |
 | **M2 体验** | ✅ | chrome 四档 ✅（**minimal / auto / immersive / full 全部实跑验证**，含 immersive 顶部热区边缘下滑 + auto 档滚动淡出 + 停手 1.5s 自动收起） + 续接卡摘要 ✅ + ⋯ 溢出菜单（12 动作分组）✅ + 下拉刷新 ✅ + 加载进度 ✅ + 失败兜底页 ✅ + 导出分享面板 ✅ + **App 级数据管理（导出全部/导入/清除全部）✅** + 原生 Toast 通道 ✅ + 端上 UI 冒烟测试通道 ✅ + **离线 L1 Service Worker ✅（已部署并实测断网秒开）** + **拦截层（下载 / 外链）✅** | 内置副本兜底（L2）· 长按抽屉 · 搜索 UI 打磨 |
 | **M3 生态** | 🔄 | `resume.mode: storage` 已跑通 ✅ + **脑力慢养续接卡 ✅（`lastGame` 算法，实测 `bf_progress`）** | Bridge 落地（title/toast/share/export/openTool 已写，待 H5 侧接入）· Bridge 上报通道（跨仓库，需 h5_tools 侧配合）· 常用置顶持久化 ✅（本地） |
 | **M4 运营** | 🔄 | 远端配置链路 ✅ + 内容嗅探 ✅ + 新鲜度保护 ✅ + **签名校验 ✅（HMAC-SHA256，真做）** + **配置 diff 提示 ✅（热更可审）** + 三份副本同步脚本 ✅ + 远端自查脚本 ✅ | 灰度 / 配置 diff 提示 / 签名校验 / 工具上下架与推荐位 |

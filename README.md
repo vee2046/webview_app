@@ -187,7 +187,7 @@ app/test/
 | 设计（示意图 / 文档 / 配置 Schema） | ✅ 定稿 |
 | P1 存储 key 清单 | ✅ 完成（`docs/STORAGE_KEYS.md`） |
 | M1 Flutter 骨架（模型 / 主题 / 图标 / 配置加载 / 数据层 / UI 层 / WebView 容器 / Bridge） | ✅ 代码完成，`flutter analyze` 0 issues |
-| 单元测试（摘要算法 / 快照往返 / 配置新鲜度 / App 级数据管理 / 下载解析 / chrome 档位 / lastGame / 配置契约 / HMAC 签名 / 配置差异） | ✅ **116 个用例全过**（8 个测试文件） |
+| 单元测试（摘要算法 / 快照往返 / 配置新鲜度 / App 级数据管理 / 下载解析 / chrome 档位 / lastGame / 配置契约 / HMAC 签名 / 配置差异） | ✅ **121 个用例全过**（8 个测试文件） |
 | 模拟器实跑验证 | ✅ 已跑通（最近页 / 小工具页 / 我的页 / WebView 同源加载 / minimal & immersive chrome / ⋯ 溢出菜单 / 导出分享面板 / 返回键回最近页 / 沉浸式边缘下滑唤出工具栏） |
 | 续接卡摘要 | ✅ 已修（`maybeDecode` 解字符串层 + `countDateMap` 算法） |
 | 配置新鲜度保护（`generatedAt`） | ✅ 已实现（远端旧配置不覆盖内置新配置） |
