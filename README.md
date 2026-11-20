@@ -24,7 +24,7 @@ flutter drive \
   -d emulator-5554
 
 # 3) 发布配置（改完 config/app.config.json 后）
-./scripts/publish-config.sh          # 同步到内置快照 + 远端 app.json（自动盖 generatedAt）
+./scripts/publish-config.sh          # 同步到内置快照 + 远端 app.json（自动盖 generatedAt + 自动签名）
 
 # 4) 验证远端配置是否真的上线了
 ./scripts/verify-remote-config.sh    # 查 HTTP/content-type/md5/generatedAt/关键字段
@@ -102,7 +102,8 @@ app/                     Flutter 工程（kmlab_toolbox）
 app/integration_test/    端上 UI 冒烟测试（真机跑，见 DESIGN.md §5.10）
 app/test/                单元测试
 scripts/
-├─ publish-config.sh     把 config/app.config.json 同步到内置快照 + 远端 app.json（自动盖 generatedAt）
+├─ publish-config.sh     把 config/app.config.json 同步到内置快照 + 远端 app.json（自动盖 generatedAt + 自动签名）
+├─ sign-config.sh        给配置算 HMAC-SHA256 签名（--check 只校验 / --print 只打印）
 ├─ verify-remote-config.sh  验证远端配置是否真的上线（HTTP / content-type / md5 / generatedAt）
 ├─ generate-icons.sh     从 assets/icon.svg 生成 Android mipmap + iOS AppIcon + macOS AppIcon
 ├─ setup-ios.sh          iOS 工具链体检 + 修复引导（xcode-select / SDK / 模拟器 / SPM）
@@ -175,7 +176,7 @@ app/test/
 
 ## 文档
 
-- [设计文档 docs/DESIGN.md](docs/DESIGN.md) —— 架构、字段全表、品牌对齐表、校验规则、状态设计、13 条设计决策、迭代路线（M1~M5 全部排期 + 5 项跨仓库配合任务）、15 条拍板结果、11 条开发风险、**24 个实跑真 BUG**、iOS / macOS 适配要点（§5.9）、端上 UI 冒烟测试通道（§5.10）、App 级数据管理（§5.11）、拦截层（下载 / 外链，§5.12）
+- [设计文档 docs/DESIGN.md](docs/DESIGN.md) —— 架构、字段全表、品牌对齐表、校验规则、状态设计、13 条设计决策、迭代路线（M1~M5 全部排期 + 5 项跨仓库配合任务）、15 条拍板结果、11 条开发风险、**25 个实跑真 BUG**、iOS / macOS 适配要点（§5.9）、端上 UI 冒烟测试通道（§5.10）、App 级数据管理（§5.11）、拦截层（下载 / 外链，§5.12）、远端配置签名（§4.4.2）、配置 diff 提示（§4.4.3）
 - [存储 key 清单 docs/STORAGE_KEYS.md](docs/STORAGE_KEYS.md) —— 8 个工具的真实 localStorage / IndexedDB key + 续接卡摘要算法
 - [设计示意图 prototype/index.html](prototype/index.html) —— 可交互原型
 
@@ -186,10 +187,12 @@ app/test/
 | 设计（示意图 / 文档 / 配置 Schema） | ✅ 定稿 |
 | P1 存储 key 清单 | ✅ 完成（`docs/STORAGE_KEYS.md`） |
 | M1 Flutter 骨架（模型 / 主题 / 图标 / 配置加载 / 数据层 / UI 层 / WebView 容器 / Bridge） | ✅ 代码完成，`flutter analyze` 0 issues |
-| 单元测试（摘要算法 / 快照往返 / 配置新鲜度 / App 级数据管理 / 下载解析 / chrome 档位 / lastGame / 配置契约） | ✅ **74 个用例全过**（6 个测试文件） |
+| 单元测试（摘要算法 / 快照往返 / 配置新鲜度 / App 级数据管理 / 下载解析 / chrome 档位 / lastGame / 配置契约 / HMAC 签名 / 配置差异） | ✅ **116 个用例全过**（8 个测试文件） |
 | 模拟器实跑验证 | ✅ 已跑通（最近页 / 小工具页 / 我的页 / WebView 同源加载 / minimal & immersive chrome / ⋯ 溢出菜单 / 导出分享面板 / 返回键回最近页 / 沉浸式边缘下滑唤出工具栏） |
 | 续接卡摘要 | ✅ 已修（`maybeDecode` 解字符串层 + `countDateMap` 算法） |
 | 配置新鲜度保护（`generatedAt`） | ✅ 已实现（远端旧配置不覆盖内置新配置） |
+| 远端配置签名（HMAC-SHA256） | ✅ 已实现（`remote.requireSignature` 从假开关变成真校验；只能加严不能放松；`scripts/sign-config.sh` 签发） |
+| 配置 diff 提示（热更可审） | ✅ 已实现（「我的 → 配置」可展开差异清单；手动刷新后弹差异对话框） |
 | 远端配置热更链路 | ✅ 已打通并验证（线上 app.json 与本地三份 md5 一致；App 冷启动成功拉取，「上次更新 11-19 11:19」） |
 | App 图标（Android mipmap + 自适应 + 单色 + iOS AppIcon） | ✅ 已生成（`scripts/generate-icons.sh`，素材 = kmlab favicon；iOS 端按 `Contents.json` 的文件名生成，避免又变回 Flutter 默认 logo） |
 | release APK 出包 | ✅ 已出（`app-release.apk`，debug key 签名，可侧载） |

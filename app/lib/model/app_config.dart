@@ -156,6 +156,23 @@ class RemoteConfig {
         'hotReload': hotReload,
         'requireSignature': requireSignature,
       };
+
+  RemoteConfig copyWith({
+    bool? enabled,
+    String? configUrl,
+    int? timeoutMs,
+    bool? refreshOnLaunch,
+    bool? hotReload,
+    bool? requireSignature,
+  }) =>
+      RemoteConfig(
+        enabled: enabled ?? this.enabled,
+        configUrl: configUrl ?? this.configUrl,
+        timeoutMs: timeoutMs ?? this.timeoutMs,
+        refreshOnLaunch: refreshOnLaunch ?? this.refreshOnLaunch,
+        hotReload: hotReload ?? this.hotReload,
+        requireSignature: requireSignature ?? this.requireSignature,
+      );
 }
 
 class OfflineConfig {

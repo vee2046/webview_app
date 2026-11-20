@@ -13,6 +13,7 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:http/http.dart' as http;
 
 import '../model/app_config.dart';
+import 'config_signature.dart';
 
 class ConfigLoadReport {
   const ConfigLoadReport({
@@ -70,7 +71,10 @@ class ConfigLoader {
             '静默沿用内置快照');
         return null;
       }
-      return parseAndValidate(res.body);
+      // ⚠️ `requireSignature` 取自**本地**配置（`remote` 来自当前生效的配置），
+      // 不能取自远端自己 —— 否则远端把开关关掉就等于免检了。
+      return parseAndValidate(res.body,
+          requireSignature: remote.requireSignature);
     } catch (e) {
       debugPrint('[ConfigLoader] 远端配置拉取失败: $e');
       return null;
@@ -86,8 +90,15 @@ class ConfigLoader {
   ///   * 签名不匹配（开启校验时）
   AppConfig? parseAndValidate(String raw, {bool requireSignature = false}) {
     AppConfig config;
+    Map<String, dynamic> rawMap;
     try {
-      config = AppConfig.parse(raw);
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map<String, dynamic>) {
+        debugPrint('[ConfigLoader] 配置根节点不是对象');
+        return null;
+      }
+      rawMap = decoded;
+      config = AppConfig.fromJson(rawMap);
     } catch (e) {
       debugPrint('[ConfigLoader] 配置解析失败: $e');
       return null;
@@ -105,8 +116,15 @@ class ConfigLoader {
     }
 
     if (requireSignature) {
-      // TODO(M4): HMAC 签名校验。签名不匹配 → 拒绝。
-      debugPrint('[ConfigLoader] 签名校验尚未实现，暂按通过处理');
+      // 签名校验（DESIGN.md §4.4）：远端配置的 HMAC-SHA256 对不上 → 拒绝。
+      //
+      // ⚠️ 校验的是**原始 JSON**（不是模型）—— 模型会丢掉没读过的字段，
+      //    用模型算出来的签名与签发时算的必然不一致。
+      if (!ConfigSignature.verify(rawMap)) {
+        debugPrint('[ConfigLoader] 远端配置签名校验不通过，已拒绝并沿用本地配置');
+        return null;
+      }
+      debugPrint('[ConfigLoader] 远端配置签名校验通过');
     }
 
     // id 去重：后者覆盖前者（并保留一个可告警的信号）

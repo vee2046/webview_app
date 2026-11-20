@@ -88,7 +88,8 @@ void main() {
     final names = collectMachineFieldNames(decoded).toSet();
     final orphans = <String>[];
     for (final name in names) {
-      if (!dartSource.contains("json['$name']")) {
+      // 匹配 `json['x']` / `map['x']` 两种写法（签名那块用的是后者）
+      if (!dartSource.contains("['$name']")) {
         orphans.add(name);
       }
     }
@@ -123,8 +124,8 @@ void main() {
   });
 
   test('两个真开关确有读取点', () {
-    expect(dartSource.contains("json['handleHardwareBack']"), isTrue);
-    expect(dartSource.contains("json['errorRetryInWebview']"), isTrue);
+    expect(dartSource.contains("['handleHardwareBack']"), isTrue);
+    expect(dartSource.contains("['errorRetryInWebview']"), isTrue);
     expect(config.webview.handleHardwareBack, isTrue);
     expect(config.webview.errorRetryInWebview, isTrue);
   });

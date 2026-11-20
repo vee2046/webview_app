@@ -10,6 +10,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../model/app_config.dart';
+import 'config_diff.dart';
 import 'config_loader.dart';
 
 class ConfigStore extends ChangeNotifier {
@@ -17,6 +18,7 @@ class ConfigStore extends ChangeNotifier {
 
   static const String _lastGoodKey = 'km.config.lastGood';
   static const String _lastRemoteKey = 'km.config.lastRemoteAt';
+  static const String _sigOverrideKey = 'km.config.requireSignature';
 
   final ConfigLoader _loader;
 
@@ -25,6 +27,8 @@ class ConfigStore extends ChangeNotifier {
   bool _refreshing = false;
   String? _lastError;
   DateTime? _lastRemoteAt;
+  List<ConfigChange> _lastDiff = const [];
+  bool _localRequireSignature = false;
 
   AppConfig? get config => _config;
   bool get loading => _loading;
@@ -32,12 +36,63 @@ class ConfigStore extends ChangeNotifier {
   String? get lastError => _lastError;
   DateTime? get lastRemoteAt => _lastRemoteAt;
 
+  /// 最近一次远端配置更新带来的差异清单（空 = 没有变更）。
+  ///
+  /// 让热更「可审」：运营改了什么，用户在「我的 → 配置」里看得见（§4.4）。
+  List<ConfigChange> get lastDiff => _lastDiff;
+
+  /// 有没有待查看的变更。
+  bool get hasDiff => _lastDiff.isNotEmpty;
+
+  /// 清掉差异清单（用户看过了就不再提示）。
+  void clearDiff() {
+    if (_lastDiff.isEmpty) return;
+    _lastDiff = const [];
+    notifyListeners();
+  }
+
+  /// 远端配置是否**强制**要求签名（来自配置本身，运营说了算）。
+  bool get signatureRequiredByConfig => _config?.remote.requireSignature ?? false;
+
+  /// 本机是否额外要求签名（用户手动加严）。
+  bool get localRequireSignature => _localRequireSignature;
+
+  /// 实际生效的签名要求。
+  ///
+  /// ⚠️ 只能**加严**不能放松：配置里写着「必须签名」时，本机开关不能把它关掉 ——
+  ///    否则「关掉校验」就成了绕过校验的后门。
+  bool get requireSignature =>
+      signatureRequiredByConfig || _localRequireSignature;
+
+  /// 本机加严开关。返回 false 表示「配置已强制，不能关闭」。
+  Future<bool> setLocalRequireSignature(bool value) async {
+    if (!value && signatureRequiredByConfig) return false;
+    if (value == _localRequireSignature) return true;
+    _localRequireSignature = value;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_sigOverrideKey, value);
+    } catch (e) {
+      debugPrint('[ConfigStore] 写入签名开关失败: $e');
+    }
+    notifyListeners();
+    return true;
+  }
+
   /// 首屏用：拿不到就是 null，UI 走骨架屏
   AppConfig? get current => _config;
 
   Future<void> bootstrap() async {
     _loading = true;
     notifyListeners();
+
+    // 本机「加严签名」开关（跨启动保留）
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _localRequireSignature = prefs.getBool(_sigOverrideKey) ?? false;
+    } catch (e) {
+      debugPrint('[ConfigStore] 读取签名开关失败: $e');
+    }
 
     // ── 第 1 层：内置快照 ──
     final bundled = await _loader.loadBundled();
@@ -80,7 +135,9 @@ class ConfigStore extends ChangeNotifier {
     _lastError = null;
     notifyListeners();
 
-    final incoming = await _loader.loadRemote(remoteCfg);
+    final incoming = await _loader.loadRemote(
+      remoteCfg.copyWith(requireSignature: requireSignature),
+    );
 
     _refreshing = false;
     if (incoming == null) {
@@ -99,9 +156,25 @@ class ConfigStore extends ChangeNotifier {
     }
 
     // 原子替换：要么整体生效，要么整体不生效
+    final previous = _config;
     final changed = !_sameConfig(_config, incoming);
     _config = incoming;
     _lastRemoteAt = DateTime.now();
+
+    // 算差异：即使「界面可见部分没变」（changed == false），
+    // 也不代表 JSON 完全一样 —— 那就只留界面级的变化，别刷屏。
+    if (previous != null) {
+      final diff = ConfigDiff.between(previous, incoming);
+      _lastDiff = diff;
+      if (diff.isNotEmpty) {
+        debugPrint('[ConfigStore] 远端配置有变化：${ConfigDiff.summarize(diff)}');
+        for (final c in diff.take(8)) {
+          debugPrint('  · ${c.describe()}');
+        }
+      }
+    } else {
+      _lastDiff = const [];
+    }
 
     await _writeLastGood(incoming);
     await _writeLastRemoteAt(_lastRemoteAt!);

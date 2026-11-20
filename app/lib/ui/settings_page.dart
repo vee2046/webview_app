@@ -6,9 +6,12 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../config/config_diff.dart';
 import '../data/usage_store.dart';
+import '../icons/doodle_icons.dart';
 import '../model/app_config.dart';
 import '../theme/paper_theme.dart';
+import '../util/native_toast.dart';
 import 'widgets/paper_widgets.dart';
 
 class SettingsPage extends StatefulWidget {
@@ -25,6 +28,10 @@ class SettingsPage extends StatefulWidget {
     this.refreshing = false,
     this.lastRemoteAt,
     this.lastError,
+    this.configDiff = const [],
+    this.requireSignature = false,
+    this.signatureLocked = false,
+    this.onRequireSignatureChanged,
   });
 
   final AppConfig config;
@@ -39,11 +46,37 @@ class SettingsPage extends StatefulWidget {
   final DateTime? lastRemoteAt;
   final String? lastError;
 
+  /// 最近一次远端配置更新带来的差异清单（§4.4「让热更可审」）。
+  final List<ConfigChange> configDiff;
+
+  /// 实际生效的签名要求（配置强制 或 本机加严）。
+  final bool requireSignature;
+
+  /// 签名要求被配置强制锁定 → 本机开关不能关。
+  final bool signatureLocked;
+
+  final Future<bool> Function(bool value)? onRequireSignatureChanged;
+
   @override
   State<SettingsPage> createState() => _SettingsPageState();
 }
 
 class _SettingsPageState extends State<SettingsPage> {
+  /// 打开/关闭本机「加严签名」开关。
+  Future<void> _toggleSignature() async {
+    final next = !widget.requireSignature;
+    final ok = await widget.onRequireSignatureChanged?.call(next) ?? false;
+    if (!mounted) return;
+    if (!ok) {
+      NativeToast.show(context, '远端配置强制要求签名，本机不能关闭');
+      return;
+    }
+    NativeToast.show(
+      context,
+      next ? '已开启签名校验：远端配置对不上就拒绝' : '已关闭本机签名校验',
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = context.paper;
@@ -125,10 +158,17 @@ class _SettingsPageState extends State<SettingsPage> {
         PaperSettingTile(
           icon: 'lock',
           title: '签名校验',
-          description: '拒绝被篡改的远端配置',
-          value: widget.config.remote.requireSignature ? '已开' : '未开',
-          trailing: _Switch(on: widget.config.remote.requireSignature),
+          description: widget.signatureLocked
+              ? '远端配置强制开启，本机不能再关'
+              : '拒绝被篡改的远端配置（HMAC-SHA256）',
+          value: widget.requireSignature ? '已开' : '未开',
+          trailing: _Switch(
+            on: widget.requireSignature,
+            onTap: widget.requireSignature ? null : _toggleSignature,
+          ),
+          onTap: widget.requireSignature ? null : _toggleSignature,
         ),
+        if (widget.configDiff.isNotEmpty) _ConfigDiffPanel(diff: widget.configDiff),
         PaperSettingTile(
           icon: 'toolbox',
           title: '首屏',
@@ -239,30 +279,34 @@ class _SettingsPageState extends State<SettingsPage> {
 
 /// 纸片开关
 class _Switch extends StatelessWidget {
-  const _Switch({required this.on});
+  const _Switch({required this.on, this.onTap});
 
   final bool on;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final p = context.paper;
-    return Container(
-      width: 38,
-      height: 21,
-      decoration: BoxDecoration(
-        color: on ? p.crayonGreen : p.paperDeep,
-        borderRadius: BorderRadius.circular(99),
-        border: Border.all(color: p.ink, width: 2),
-      ),
-      alignment: on ? Alignment.centerRight : Alignment.centerLeft,
-      padding: const EdgeInsets.all(2),
+    return GestureDetector(
+      onTap: onTap,
       child: Container(
-        width: 13,
-        height: 13,
+        width: 38,
+        height: 21,
         decoration: BoxDecoration(
-          color: p.paperCard,
-          shape: BoxShape.circle,
-          border: Border.all(color: p.ink, width: 1.6),
+          color: on ? p.crayonGreen : p.paperDeep,
+          borderRadius: BorderRadius.circular(99),
+          border: Border.all(color: p.ink, width: 2),
+        ),
+        alignment: on ? Alignment.centerRight : Alignment.centerLeft,
+        padding: const EdgeInsets.all(2),
+        child: Container(
+          width: 13,
+          height: 13,
+          decoration: BoxDecoration(
+            color: p.paperCard,
+            shape: BoxShape.circle,
+            border: Border.all(color: p.ink, width: 1.6),
+          ),
         ),
       ),
     );
@@ -331,6 +375,100 @@ class _BrandSourceTable extends StatelessWidget {
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+
+/// 配置差异面板 —— 把「远端配置这次改了什么」摊开给人看。
+///
+/// 这是「热更可审」的落地点（DESIGN.md §4.4）：远端配置可以在 App 不发版的
+/// 情况下被改掉，如果不把差异摊开，用户遇到行为变化只会觉得「App 坏了」。
+class _ConfigDiffPanel extends StatefulWidget {
+  const _ConfigDiffPanel({required this.diff});
+
+  final List<ConfigChange> diff;
+
+  @override
+  State<_ConfigDiffPanel> createState() => _ConfigDiffPanelState();
+}
+
+class _ConfigDiffPanelState extends State<_ConfigDiffPanel> {
+  bool _expanded = false;
+
+  static const int _maxShown = 20;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.paper;
+    final diff = widget.diff;
+    final shown = diff.take(_maxShown).toList();
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: PaperCard(
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                UiIcon('refresh', size: 16, color: p.ink),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    '本次更新的变更',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: p.ink,
+                    ),
+                  ),
+                ),
+                Text(
+                  ConfigDiff.summarize(diff),
+                  style: TextStyle(fontSize: 12, color: p.inkSoft),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            if (_expanded)
+              for (final c in shown)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Text(
+                    c.describe(),
+                    style: TextStyle(
+                      fontSize: 12,
+                      height: 1.45,
+                      color: p.ink,
+                      fontFamily: 'monospace',
+                    ),
+                  ),
+                ),
+            if (diff.length > _maxShown)
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(
+                  '…还有 ${diff.length - _maxShown} 处未显示',
+                  style: TextStyle(fontSize: 11, color: p.inkSoft),
+                ),
+              ),
+            const SizedBox(height: 6),
+            GestureDetector(
+              onTap: () => setState(() => _expanded = !_expanded),
+              child: Text(
+                _expanded ? '收起 ▲' : '展开看明细 ▼',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: p.crayonBlue,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

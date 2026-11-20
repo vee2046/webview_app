@@ -39,7 +39,7 @@
 | Android 实跑 | ✅ 模拟器 emulator-5554 全功能验证通过 |
 | iOS 实跑 | ✅ 模拟器 D2D6D351（iPhone 16 / iOS 18.2）验证通过 |
 | 端上 UI 冒烟测试 | ✅ `flutter drive` 4 用例，iOS + Android 双端可跑 |
-| 实跑中修掉的真 BUG | 15 个（见 §8.0） |
+| 实跑中修掉的真 BUG | 25 个（见 §8.0） |
 
 ---
 
@@ -290,7 +290,7 @@ config/app.config.json
 | **内容嗅探** | body 首字符必须是 `{` | 静默降级（记日志，不报错） |
 | schemaVersion | 必须 ≤ 当前支持的版本 | 拒绝 |
 | 结构 | 根节点必须是对象；`tools` 不能为空数组 | 拒绝 |
-| 签名 | `requireSignature` 时校验 HMAC | 拒绝（预留，未启用） |
+| **签名** | `requireSignature` 时校验 HMAC-SHA256 | **拒绝**（已实现，见 §4.4.2） |
 | **新鲜度** | `generatedAt` 不得早于本地 | 拒绝（见 §4.4.1） |
 
 > ⚠️ **内容嗅探为什么必须有**：kmlab.tech 是静态托管的 Vue SPA，访问任何不存在的路径都返回 **HTTP 200 + `index.html`**。只看状态码 → 远端配置永远不会失败也永远不会生效，日志还会刷一片 `FormatException: Unexpected character (at character 1) <!doctype html>`。这是实跑踩出来的第一课。
@@ -313,6 +313,51 @@ config/app.config.json
 被拒时记 `lastError` 并打日志，**不覆盖** `_config`。
 
 **发布侧配套**：`scripts/publish-config.sh` 在检测到「配置内容真的变了」时才盖新时间戳，且时间戳取 **`max(当前 UTC 时间, 上一版 + 1 秒)`** —— 保证单调递增，即使机器时钟不准、或上一版被人手写成了未来时间，也不会出现「新配置比线上还旧 → 被拒绝」的坑。
+
+### 4.4.2 远端配置签名（HMAC-SHA256）
+
+**问题**：`remote.requireSignature` 这个开关之前是**纯装饰** —— 模型读了、UI 显示了、「我的」页里还有个能拨的开关，但**没有任何一行代码校验过签名**。按下开关什么也不会发生。
+
+> 这跟 BUG #23 那一族（8 个假开关）是同一个病：**配置里声明了能力，代码里没实现**。假开关比没有开关更糟 —— 运营会以为改它有用。
+
+**做法**：远端配置的顶层带一个 `signature` 字段 = `HMAC-SHA256(密钥, 规范化JSON)`。
+
+| 环节 | 规则 |
+|---|---|
+| 规范化 | 键按字典序排序、无多余空白、中文不转义、排除 `signature` 字段本身 |
+| 密钥 | `kmlab-h5-config-2026-v1`，编译进 App（可用环境变量 `KMLAB_CONFIG_SECRET` 覆盖签发侧） |
+| 比对 | **定长比较**（`_constantTimeEquals`），避免通过比较耗时侧信道泄漏 |
+| 签名开关的来源 | **必须取自本地配置**，不能取自远端自己 —— 否则远端把开关关掉就等于免检 |
+| 只能加严 | 配置强制为 `true` 时，用户在「我的」页**关不掉**这个开关；本机可以额外加严，但不能放松 |
+
+**发布侧**：`scripts/sign-config.sh` 用 python 侧的 `canonical()`（与 Dart 侧逐字节一致）算签名，`scripts/publish-config.sh` 在盖完 `generatedAt` 之后、复制副本之前自动签。
+
+**跨语言一致性怎么保证**：`app/test/config_signature_test.dart` 有一组「真实配置文件」用例 —— 用 **Dart 侧**的验签去校验 **python 侧**签出来的 `config/app.config.json`。两边规范化规则差一个字节，这条测试就红。
+
+**威胁模型（诚实版）**：
+
+| ✅ 防 | ❌ 不防 |
+|---|---|
+| CDN / 静态托管被误改、被劫持 | 定向逆向（密钥编译进 App 包，能被提取） |
+| 运营手滑发布了没签名的文件 | 能改 App 的人（他本来就能改行为） |
+| 中间人替换响应体（HTTPS 证书被绕过时） | —— |
+
+> 真要做到「防定向逆向」，得用**非对称签名**（服务端私钥签、App 内置公钥验）。那是 M4 之后的事。
+
+### 4.4.3 配置 diff：让热更「可审」
+
+**问题**：远端配置可以在 App 不发版的情况下被运营改掉。方便，但**「改了什么看不见」** —— 用户遇到行为变化只会觉得「App 是不是坏了」，运营也复现不了「线上到底是哪一版」。
+
+**做法**：`ConfigDiff.between(旧配置, 新配置)` 算出一份人类可读的差异清单。
+
+| 环节 | 规则 |
+|---|---|
+| 差异算在哪层 | **模型的 `toJson()`** —— 只列「人关心的字段」，模型不认识的字段天然看不见 |
+| 列表怎么对齐 | 按 `id` 对齐（`tools` / `tabs` / `bottomNav` 都有 `id`）—— 调换顺序不算变化，改标题只算一条 |
+| 展示在哪 | ① 「我的 → 配置」里可展开的差异面板（最多 20 条）② 手动刷新配置后弹对话框列出差异 |
+| 算法 | `ConfigDiff.diffMaps` 是纯 JSON 树差异的算法本体，可单独测试 |
+
+> ⚠️ 原先一键刷新只弹「配置已更新」四个字 —— 对用户零信息量。现在改成直接列出改了什么。
 
 ### 4.5 品牌与命名一致性（复用 kmlab_site）
 
@@ -992,13 +1037,13 @@ Flutter 侧：小工具页列数 `app.home.columns`（默认 2，clamp 1~3）。
 
 | 里程碑 | 状态 | 已完成 | 待做 |
 |---|---|---|---|
-| **M1 骨架** | ✅ | Flutter 工程 + 配置加载器 + 最近页（首屏）+ 小工具页 + 我的页 + WebView 容器（minimal/full/auto）+ 返回键 + 品牌资产（图标/分类/工具名/doodle）+ **App 正式名 `kmlab Toolbox`** + 单元测试（74 个用例） | iOS / macOS 正式签名出包 |
+| **M1 骨架** | ✅ | Flutter 工程 + 配置加载器 + 最近页（首屏）+ 小工具页 + 我的页 + WebView 容器（minimal/full/auto）+ 返回键 + 品牌资产（图标/分类/工具名/doodle）+ **App 正式名 `kmlab Toolbox`** + 单元测试（116 个用例） | iOS / macOS 正式签名出包 |
 | **M2 体验** | ✅ | chrome 四档 ✅（**minimal / auto / immersive / full 全部实跑验证**，含 immersive 顶部热区边缘下滑 + auto 档滚动淡出 + 停手 1.5s 自动收起） + 续接卡摘要 ✅ + ⋯ 溢出菜单（12 动作分组）✅ + 下拉刷新 ✅ + 加载进度 ✅ + 失败兜底页 ✅ + 导出分享面板 ✅ + **App 级数据管理（导出全部/导入/清除全部）✅** + 原生 Toast 通道 ✅ + 端上 UI 冒烟测试通道 ✅ + **离线 L1 Service Worker ✅（已部署并实测断网秒开）** + **拦截层（下载 / 外链）✅** | 内置副本兜底（L2）· 长按抽屉 · 搜索 UI 打磨 |
 | **M3 生态** | 🔄 | `resume.mode: storage` 已跑通 ✅ + **脑力慢养续接卡 ✅（`lastGame` 算法，实测 `bf_progress`）** | Bridge 落地（title/toast/share/export/openTool 已写，待 H5 侧接入）· Bridge 上报通道（跨仓库，需 h5_tools 侧配合）· 常用置顶持久化 ✅（本地） |
-| **M4 运营** | 🔄 | 远端配置链路 ✅ + 内容嗅探 ✅ + 新鲜度保护 ✅ + 三份副本同步脚本 ✅ + 远端自查脚本 ✅ | 灰度 / 配置 diff 提示 / 签名校验 / 工具上下架与推荐位 |
+| **M4 运营** | 🔄 | 远端配置链路 ✅ + 内容嗅探 ✅ + 新鲜度保护 ✅ + **签名校验 ✅（HMAC-SHA256，真做）** + **配置 diff 提示 ✅（热更可审）** + 三份副本同步脚本 ✅ + 远端自查脚本 ✅ | 灰度 / 配置 diff 提示 / 签名校验 / 工具上下架与推荐位 |
 | **M5 扩展** | 🔄 | 深色模式 ✅ + **macOS 平台接入 ✅（出包 + 跑通 + 沙箱 entitlement）** | TestFlight 上传 · 桌面 Widget · 多语言 · 分享长图 · 平板/手表适配 |
 
-#### 实跑中修掉的 24 个真 BUG
+#### 实跑中修掉的 25 个真 BUG
 
 | # | 现象 | 根因 | 修法 |
 |---|---|---|---|
@@ -1026,6 +1071,7 @@ Flutter 侧：小工具页列数 `app.home.columns`（默认 2，clamp 1~3）。
 | 22 | `auto`（自动隐藏顶栏）档**完全失效** —— 通往 AGI 之路的顶栏永远压着内容，从不淡出 | `webview_host.dart` 注入滚动监听时判断的是 `config.webview.chrome.defaultMode == ChromeMode.auto`，而 `webview.chrome.default` 恒为 `minimal` → 条件永远为假 → `KmBridge.scrollScript` 从未被注入 → 页面不上报滚动方向 → 顶栏不淡出 | 改用当前工具的档位 `widget.tool.open.isAutoChrome`（判断入口收在 `OpenConfig.isAutoChrome`），并补 `app/test/chrome_test.dart` 守住；实跑验证：滚下去顶栏隐藏、滚回来顶栏显示、停手 1.5s 自动收起 |
 | 23 | 配置里有一整族「声明了但代码里从没读过」的**假开关** —— 运营改了以为生效，实际毫无反应 | `webview` 块里的 `javascriptEnabled` / `domStorageEnabled` / `databaseEnabled` / `allowFileAccess` / `allowContentAccess` / `mediaPlaybackRequiresUserGesture` / `cacheMode` 在 `webview_flutter` 里**没有对应平台 API**（或恒为 true）；`allowUniversalAccessFromFileUrls` 连模型里都没有 | 逐项审计（配置叶子路径 → 扫 `app/lib` 里的 `json['…']` 读取点）→ **8 个假开关从配置与模型里同时删除**；两个真开关 `handleHardwareBack` / `errorRetryInWebview` 真做实；新增 `app/test/config_contract_test.dart` 做「配置即契约」守卫，以后再出现孤儿字段就红 |
 | 24 | 脑力慢养的续接卡永远是「上一局还没打完」 | 配置写的是 `resume.mode: "bridge"`，但**没有任何 Bridge 上报通道** —— H5 侧没接，App 侧也就永远收不到 | 实测线上 bundle 摸清 `bf_progress` 的真实结构（今天没打完的那一局，H5 自己会清理过期）→ 新增 `ExtractKind.lastGame` 算法（三级降级：分数 → 步数 → 只有游戏名），`resume.mode` 改回 `storage`；游戏代码→中文名映射放进**配置**（App 不硬编码 H5 的知识） |
+| 25 | 「我的 → 签名校验」开关**点了没反应**（纯装饰）；`remote.requireSignature` 在 loader 里只有一行 `TODO(M4)`，**签名从来就没被校验过** | 与 BUG #23 同一族：配置声明了能力、代码没实现。签名开关连 `onChanged` 都没有，`_Switch(on: ...)` 只是个显示 | 新增 `lib/config/config_signature.dart`（纯 Dart HMAC-SHA256，零依赖）+ `lib/config/config_diff.dart`；`parseAndValidate` 改成同时拿到原始 Map 并在 `requireSignature` 时验签，不通过 → 拒绝沿用本地；签名开关改成真开关且**只能加严不能放松**；新增 `scripts/sign-config.sh` 与 `app/test/config_signature_test.dart`（用 Dart 验 python 签的文件，锁死跨语言一致性）；顺带补上「配置 diff 提示」，让热更可审（§4.4.2 / §4.4.3） |
 
 > ⚠️ 其余 `paperBorderRadius` 调用点（Container / BoxDecoration / RoundedRectangleBorder）**都支持椭圆角**，不用改 —— 只有 `OutlineInputBorder` 是雷。
 
@@ -1053,8 +1099,10 @@ app/
 │  ├─ main.dart                 MaterialApp + ListenableBuilder 注入 + bootstrap
 │  ├─ model/app_config.dart     全量不可变模型（20 个类 + 6 个枚举 + fromJson/toJson）
 │  ├─ config/
-│  │  ├─ config_loader.dart     内置 / 远端 / 解析校验 / 内容嗅探
-│  │  └─ config_store.dart      bootstrap / refresh / staleReason / last-good 持久化
+│  │  ├─ config_loader.dart     内置 / 远端 / 解析校验 / 内容嗅探 / 签名校验闸门
+│  │  ├─ config_store.dart      bootstrap / refresh / staleReason / last-good 持久化 / lastDiff
+│  │  ├─ config_diff.dart       配置差异算法（列表按 id 对齐）
+│  │  └─ config_signature.dart  纯 Dart HMAC-SHA256（零依赖）+ 规范化 JSON
 │  ├─ data/
 │  │  ├─ usage_store.dart       使用记录 / 置顶 / 快照缓存（SharedPreferences）
 │  │  │                          + exportPayload / importPayload / clearAllData
@@ -1075,12 +1123,14 @@ app/
 │     ├─ km_bridge.dart          window.KM 注入 + ready/scroll/edgeSwipe/pullToRefresh/snapshot 脚本
 │     └─ webview_host.dart       WebView 容器 + 兜底页 + 骨架屏 + ImmersiveHotZone
 ├─ test/
-│  ├─ resume_reader_test.dart            摘要算法单元测试（26 个用例）
+│  ├─ resume_reader_test.dart            摘要算法单元测试（21 个用例）
 │  ├─ data_transfer_test.dart            App 级数据管理单元测试（7 个用例）
-│  ├─ downloader_test.dart               下载解析 / 文件名消毒单元测试（13 个用例）
+│  ├─ downloader_test.dart               下载解析 / 文件名消毒单元测试（16 个用例）
 │  ├─ chrome_test.dart                   chrome 档位单元测试（10 个用例）
-│  ├─ lastgame_test.dart                 脑力慢养 lastGame 算法单元测试（14 个用例）
-│  └─ config_contract_test.dart          「配置即契约」守卫（5 个用例：孤儿字段 / 假开关 / 品牌溯源）
+│  ├─ lastgame_test.dart                 脑力慢养 lastGame 算法单元测试（15 个用例）
+│  ├─ config_contract_test.dart          「配置即契约」守卫（5 个用例：孤儿字段 / 假开关 / 品牌溯源）
+│  ├─ config_signature_test.dart         HMAC-SHA256 向量 + 跨语言验签（23 个用例）
+│  └─ config_diff_test.dart              配置差异算法（19 个用例）
 ├─ integration_test/app_smoke_test.dart  端上 UI 冒烟测试（4 个用例）
 ├─ test_driver/integration_test.dart      flutter drive 入口
 ├─ android/app/src/main/

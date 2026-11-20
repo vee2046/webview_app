@@ -30,6 +30,7 @@ strip_ts() {
 import json, sys, io
 d = json.load(io.open(sys.argv[1], encoding='utf-8'))
 d.pop('generatedAt', None)
+d.pop('signature', None)
 print(json.dumps(d, sort_keys=True, ensure_ascii=False))
 PYEOF
 }
@@ -89,7 +90,11 @@ with io.open(src, 'w', encoding='utf-8') as f:
     f.write('\n')
 PYEOF
 
-# ---------- 3. 同步副本 ----------
+# ---------- 3. 签名（HMAC-SHA256，让 remote.requireSignature 真的生效） ----------
+# ⚠️ 必须在盖完 generatedAt 之后、复制副本之前 —— 签名覆盖的是文件内容。
+"$ROOT/scripts/sign-config.sh" | sed 's/^/▸ /'
+
+# ---------- 4. 同步副本 ----------
 mkdir -p "$(dirname "$BUILTIN")"
 cp "$SRC" "$BUILTIN"
 echo "▸ 已同步 $BUILTIN"
@@ -102,7 +107,7 @@ else
   echo "⚠️ 找不到 $KMLAB_SITE_DIR，跳过远端发布（可用 KMLAB_SITE_DIR 指定）"
 fi
 
-# ---------- 4. Android 桌面标签 ----------
+# ---------- 5. Android 桌面标签 ----------
 APP_NAME="$(python3 -c "import json,io;print(json.load(io.open('$SRC',encoding='utf-8'))['app']['appName'])")"
 mkdir -p "$(dirname "$STRINGS")"
 cat > "$STRINGS" << EOF
@@ -114,7 +119,7 @@ cat > "$STRINGS" << EOF
 EOF
 echo "▸ 已生成 $STRINGS（app_name = $APP_NAME）"
 
-# ---------- 5. 自检 ----------
+# ---------- 6. 自检 ----------
 python3 - "$SRC" << 'PYEOF'
 import json, io, sys
 d = json.load(io.open(sys.argv[1], encoding='utf-8'))
@@ -122,6 +127,7 @@ assert d['schemaVersion'] == 1, 'schemaVersion 必须为 1'
 assert d.get('generatedAt'), '缺 generatedAt'
 assert d['app'].get('appName'), '缺 app.appName'
 assert d.get('tools'), 'tools 为空'
+assert d.get('signature'), '缺 signature'
 print(f"✅ 自检通过：schemaVersion=1 · generatedAt={d['generatedAt']} · tools={len(d['tools'])} 个 · appName={d['app']['appName']}")
 PYEOF
 

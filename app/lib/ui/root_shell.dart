@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 
 import '../config/config_store.dart';
 import '../data/data_transfer.dart';
+import '../config/config_diff.dart';
 import '../data/usage_store.dart';
 import '../icons/doodle_icons.dart';
 import '../model/app_config.dart';
@@ -170,19 +171,7 @@ class _RootShellState extends State<RootShell> {
                   usage: widget.usage,
                   onOpenTool: _openTool,
                   onOpenSettings: () => _selectTab(config, 'me'),
-                  onRefreshConfig: () async {
-                    final changed = await widget.configStore.refresh();
-                    if (!context.mounted) return;
-                    final messenger = ScaffoldMessenger.of(context);
-                    messenger.hideCurrentSnackBar();
-                    messenger.showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          changed ? '配置已更新' : '配置没有变化',
-                        ),
-                      ),
-                    );
-                  },
+                  onRefreshConfig: () => _refreshConfig(config),
                 ),
                 SettingsPage(
                   config: config,
@@ -195,15 +184,13 @@ class _RootShellState extends State<RootShell> {
                   onExportAll: () => _exportAll(config),
                   onImportAll: () => _importAll(config),
                   onClearAll: () => _clearAll(config),
-                  onRefreshConfig: () async {
-                    final changed = await widget.configStore.refresh();
-                    if (!context.mounted) return;
-                    final messenger = ScaffoldMessenger.of(context);
-                    messenger.hideCurrentSnackBar();
-                    messenger.showSnackBar(
-                      SnackBar(content: Text(changed ? '配置已更新' : '配置没有变化')),
-                    );
-                  },
+                  onRefreshConfig: () => _refreshConfig(config),
+                  configDiff: widget.configStore.lastDiff,
+                  requireSignature: widget.configStore.requireSignature,
+                  signatureLocked:
+                      widget.configStore.signatureRequiredByConfig,
+                  onRequireSignatureChanged: (v) =>
+                      widget.configStore.setLocalRequireSignature(v),
                 ),
               ],
             ),
@@ -226,6 +213,64 @@ class _RootShellState extends State<RootShell> {
   // ── App 级数据管理 ────────────────────────────────────────────
 
   /// 导出全部数据 → `.json` → 系统分享面板。
+  /// 刷新远端配置，并把**差异**摊开给用户看。
+  ///
+  /// 「配置已更新」四个字对用户没有任何信息量 —— 他真正想知道的是
+  /// 「改了什么」：工具下架了？签名算法换了？推荐位动了？
+  Future<void> _refreshConfig(AppConfig config) async {
+    final changed = await widget.configStore.refresh();
+    if (!mounted) return;
+
+    final diff = widget.configStore.lastDiff;
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+
+    if (diff.isEmpty) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(changed ? '配置已更新' : '配置没有变化')),
+      );
+      return;
+    }
+
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('配置已更新'),
+        content: SizedBox(
+          width: 320,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(ConfigDiff.summarize(diff)),
+                const SizedBox(height: 10),
+                for (final c in diff.take(20))
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 5),
+                    child: Text(
+                      c.describe(),
+                      style: const TextStyle(fontSize: 12, height: 1.4),
+                    ),
+                  ),
+                if (diff.length > 20)
+                  Text('…还有 ${diff.length - 20} 处未显示',
+                      style: const TextStyle(fontSize: 11)),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('知道了'),
+          ),
+        ],
+      ),
+    );
+    widget.configStore.clearDiff();
+  }
+
   Future<void> _exportAll(AppConfig config) async {
     try {
       await AppDataTransfer.exportAll(context, widget.usage, config);
