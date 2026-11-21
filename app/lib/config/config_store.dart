@@ -9,6 +9,7 @@ library;
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../data/device_bucket.dart';
 import '../model/app_config.dart';
 import 'config_diff.dart';
 import 'config_loader.dart';
@@ -28,6 +29,8 @@ class ConfigStore extends ChangeNotifier {
   String? _lastError;
   DateTime? _lastRemoteAt;
   List<ConfigChange> _lastDiff = const [];
+  int _deviceBucket = 0;
+  String _channel = 'stable';
   bool _localRequireSignature = false;
 
   AppConfig? get config => _config;
@@ -35,6 +38,12 @@ class ConfigStore extends ChangeNotifier {
   bool get refreshing => _refreshing;
   String? get lastError => _lastError;
   DateTime? get lastRemoteAt => _lastRemoteAt;
+
+  /// 本机分桶号（0~99），灰度用。
+  int get deviceBucket => _deviceBucket;
+
+  /// 当前走的是哪条通道：`stable`（稳定版）/ `canary`（灰度版）。
+  String get channel => _channel;
 
   /// 最近一次远端配置更新带来的差异清单（空 = 没有变更）。
   ///
@@ -135,8 +144,22 @@ class ConfigStore extends ChangeNotifier {
     _lastError = null;
     notifyListeners();
 
+    // 灰度分流：本机落在灰度组就拉灰度版地址，否则拉稳定版。
+    //
+    // ⚠️ `rolloutPercent` 取自**当前生效（稳定版）配置** —— 决定「我拉哪个地址」
+    // 的必须是稳定版，否则不在灰度组的设备永远看不到灰度配置，也就永远升不到 100%。
+    _deviceBucket = await DeviceBucket.bucket();
+    final useCanary = remoteCfg.hasCanary &&
+        DeviceBucket.isInCanary(_deviceBucket, remoteCfg.rolloutPercent);
+    _channel = useCanary ? 'canary' : 'stable';
+    final effectiveUrl = useCanary ? remoteCfg.canaryUrl : remoteCfg.configUrl;
+    debugPrint('[ConfigStore] 分桶 $_deviceBucket/100 · 走 $_channel 通道 · $effectiveUrl');
+
     final incoming = await _loader.loadRemote(
-      remoteCfg.copyWith(requireSignature: requireSignature),
+      remoteCfg.copyWith(
+        requireSignature: requireSignature,
+        configUrl: effectiveUrl,
+      ),
     );
 
     _refreshing = false;

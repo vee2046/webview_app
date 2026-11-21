@@ -19,6 +19,8 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../data/downloader.dart';
+import '../data/resume_reader.dart';
+import '../data/share_image.dart';
 import '../data/usage_store.dart';
 import '../icons/doodle_icons.dart';
 import '../model/app_config.dart';
@@ -26,6 +28,9 @@ import '../theme/paper_theme.dart';
 import '../util/native_toast.dart';
 import '../webview/km_bridge.dart';
 import '../webview/webview_host.dart';
+import 'recent_page.dart';
+import 'share_preview_dialog.dart';
+import 'widgets/share_card.dart';
 
 class ToolDetailPage extends StatefulWidget {
   const ToolDetailPage({
@@ -201,9 +206,13 @@ class _ToolDetailPageState extends State<ToolDetailPage>
         _reloadPage();
       case 'swReady':
         // 站内 Service Worker 注册成功 → 这个工具已经能离线打开
+        debugPrint('[SW] 注册成功 scope=${msg.payload['scope']}');
         if (mounted) {
           setState(() => _offlineReady = true);
         }
+      case 'swUnavailable':
+        // 注册失败 —— iOS 14+ 需要 Info.plist 里配 WKAppBoundDomains
+        debugPrint('[SW] 注册失败：${msg.payload['reason']}');
       case 'toast':
         final m = msg.message;
         if (m.isNotEmpty) {
@@ -265,6 +274,7 @@ class _ToolDetailPageState extends State<ToolDetailPage>
       _OverflowAction('openInBrowser', '在浏览器中打开', 'globe', _groupPage),
       _OverflowAction('share', '分享', 'share', _groupPage),
       _OverflowAction('fullscreen', '全屏浏览', 'fullscreen', _groupDisplay),
+      _OverflowAction('shareCard', '生成分享长图', 'image', _groupDisplay),
       _OverflowAction('pin', '固定到常用', 'pin', _groupDisplay),
       _OverflowAction('exportData', '导出这个工具的数据', 'download', _groupData),
       _OverflowAction('importData', '导入数据', 'upload', _groupData),
@@ -314,6 +324,8 @@ class _ToolDetailPageState extends State<ToolDetailPage>
         await _shareText(widget.tool.url, _title);
       case 'fullscreen':
         _toggleFullscreen();
+      case 'shareCard':
+        await _shareToolCard();
       case 'pin':
         await widget.usage.togglePin(widget.tool.id);
         if (mounted) {
@@ -333,6 +345,57 @@ class _ToolDetailPageState extends State<ToolDetailPage>
           '${widget.config.about.repo}/issues/new?title=${Uri.encodeComponent(widget.tool.title)}',
         );
     }
+  }
+
+  /// 生成分享长图：把这个工具的摘要做成一张纸片海报。
+  ///
+  /// ⚠️ 长图里画的是 **App 自己知道的数据**（摘要 / 分类 / 存储位置），
+  /// 不是网页截图 —— WebView 是 PlatformView，系统截图抓不到 H5 内容。
+  Future<void> _shareToolCard() async {
+    if (!mounted) return;
+    final tool = widget.tool;
+    final color = tabColorOf(widget.config, tool.tab, context.paper.crayonBlue);
+    final summary = ResumeReader()
+        .summarize(tool, widget.usage.snapshotOf(tool.id));
+    final tab = widget.config.app.tabs
+        .where((t) => t.id == tool.tab)
+        .map((t) => t.title)
+        .firstOrNull;
+    final streak = widget.usage.streakDays;
+
+    final ok = await showSharePreview(
+      context,
+      fileName: ShareImage.fileName('tool-${tool.id}', DateTime.now()),
+      text: '${tool.title} · kmlab Toolbox',
+      hint: '长图里是 App 侧的数据摘要（网页内容不会被截图）',
+      cardBuilder: (w) => ShareReportCard(
+        width: w,
+        title: tool.title,
+        subtitle: tool.subtitle,
+        iconName: tool.icon,
+        accent: color,
+        badge: streak > 0 ? '连续 $streak 天' : null,
+        rows: [
+          ShareRow(icon: 'clock', label: '最近进度', value: summary.text),
+          ShareRow(icon: 'grid', label: '分类', value: tab ?? '未分类'),
+          ShareRow(
+            icon: 'lock',
+            label: '数据存储',
+            value: '本机 · 与网页版同源',
+          ),
+          ShareRow(
+            icon: 'wifi',
+            label: '离线可用',
+            value: _offlineReady ? '断网也能打开' : '需要联网',
+            valueColor: _offlineReady ? context.paper.crayonGreen : null,
+          ),
+          ShareRow(icon: 'link', label: '地址', value: tool.url),
+        ],
+        footerNote: '数据存在这台设备的浏览器存储里，与网页版共享同一份。'
+            '换机可在「我的 → 离线与数据」导出备份。',
+      ),
+    );
+    if (!ok && mounted) _toast('已取消分享');
   }
 
   void _toast(String msg) {

@@ -922,6 +922,52 @@ flutter drive --driver=test_driver/integration_test.dart \
 
 **代码位置**：`lib/data/downloader.dart`（下载 + 文件名消毒）+ `lib/webview/webview_host.dart`（`onNavigationRequest` 判定）+ `lib/ui/tool_detail_page.dart`（`_handleExternalLink` / `_startDownload` / `_handleBlobData`）。
 
+### 5.13 灰度发布（两份 URL + 设备稳定分桶）
+
+**要解决的问题**：运营改了配置想先给 10% 用户试，出问题一键回滚 —— 但**不能用「同一份配置里的一个百分比字段」来做**。
+
+**为什么不能用一份配置**：`rolloutPercent` 写在**哪一份**配置里，决定了「我拉哪个地址」的又是那份配置本身。
+写在灰度版里 ⇒ 不在灰度组的设备永远看不到这个字段 ⇒ 永远升不到 100%。递归问题。
+
+**⇒ 必须两份 URL**：
+
+| 字段 | 写在哪 | 含义 |
+|---|---|---|
+| `remote.configUrl` | **稳定版**配置 | 稳定版配置地址（绝大多数设备拉这个） |
+| `remote.canaryUrl` | **稳定版**配置 | 灰度版配置地址（可选，空 = 没开灰度） |
+| `remote.rolloutPercent` | **稳定版**配置 | 0~100，进灰度的设备比例 |
+
+**设备分桶**（`lib/data/device_bucket.dart`）：
+1. 首次启动生成随机 UUID → 存 SharedPreferences（`km.device.id`）→ 之后一直是同一个
+2. `bucket = FNV-1a(uuid)` → **murmur3 `fmix32` 终混合** → 乘高位映射到 0~99
+3. `bucket < rolloutPercent` → 走灰度地址
+
+**踩过的三个坑**：
+- `String.hashCode` 不能用 —— Dart 只保证「同一版本内一致」，跨版本可能变；灰度要求「同一设备永远同一个桶」
+- FNV-1a 直接 `% 100` 分布很差（200 个 ID 只覆盖 76 个桶）—— 取模只用低位，而 FNV 的雪崩集中在低位
+- 只改「乘高位映射」仍不够（覆盖降到 47 个桶）—— 最后靠 `fmix32` 终混合解决
+
+**运营流程**：
+```
+publish（stable 不动） → 只发 canary → stable 配置里填 canaryUrl + rolloutPercent
+   → 观察 → 全量：stable 也更新 + canaryUrl 清空（或 rolloutPercent 提到 100）
+```
+
+### 5.14 分享长图
+
+**做什么**：把「我用了哪些工具、用了多久」做成一张牛皮纸海报（长图），一键分享到微信/小红书等。
+
+**两个入口**：
+- 工具容器 ⋯ 菜单 → **生成分享长图**（该工具的摘要）
+- 我的页 → 离线与数据 → **生成分享长图**（整体使用报告）
+
+**实现**：`RepaintBoundary` → `toImage(pixelRatio: 3)` → PNG → 临时文件 → `SharePlus` 系统分享面板。
+先弹**预览弹窗**（看得见再分享），卡片固定 340 逻辑宽、视口窄时横向滚动。
+
+**⚠️ 已知限制**：WebView 是 PlatformView，系统截图**抓不到 H5 内容** ⇒ 长图画的是 App 自己知道的数据（使用统计 + 工具摘要），不是网页截图。
+
+---
+
 ## §6 设计决策
 
 ### D1 🔴 换 origin = 丢数据
@@ -1038,12 +1084,12 @@ Flutter 侧：小工具页列数 `app.home.columns`（默认 2，clamp 1~3）。
 | 里程碑 | 状态 | 已完成 | 待做 |
 |---|---|---|---|
 | **M1 骨架** | ✅ | Flutter 工程 + 配置加载器 + 最近页（首屏）+ 小工具页 + 我的页 + WebView 容器（minimal/full/auto）+ 返回键 + 品牌资产（图标/分类/工具名/doodle）+ **App 正式名 `kmlab Toolbox`** + 单元测试（121 个用例） | iOS / macOS 正式签名出包 |
-| **M2 体验** | ✅ | chrome 四档 ✅（**minimal / auto / immersive / full 全部实跑验证**，含 immersive 顶部热区边缘下滑 + auto 档滚动淡出 + 停手 1.5s 自动收起） + 续接卡摘要 ✅ + ⋯ 溢出菜单（12 动作分组）✅ + 下拉刷新 ✅ + 加载进度 ✅ + 失败兜底页 ✅ + 导出分享面板 ✅ + **App 级数据管理（导出全部/导入/清除全部）✅** + 原生 Toast 通道 ✅ + 端上 UI 冒烟测试通道 ✅ + **离线 L1 Service Worker ✅（已部署并实测断网秒开）** + **拦截层（下载 / 外链）✅** | 内置副本兜底（L2）· 长按抽屉 · 搜索 UI 打磨 |
+| **M2 体验** | ✅ | chrome 四档 ✅（**minimal / auto / immersive / full 全部实跑验证**，含 immersive 顶部热区边缘下滑 + auto 档滚动淡出 + 停手 1.5s 自动收起） + 续接卡摘要 ✅ + ⋯ 溢出菜单（12 动作分组）✅ + 下拉刷新 ✅ + 加载进度 ✅ + 失败兜底页 ✅ + 导出分享面板 ✅ + **App 级数据管理（导出全部/导入/清除全部）✅** + 原生 Toast 通道 ✅ + 端上 UI 冒烟测试通道 ✅ + **离线 L1 Service Worker ✅（Android 已部署并实测断网秒开；iOS 需 `WKAppBoundDomains`，已补，见 BUG #26）** + **拦截层（下载 / 外链）✅** + **分享长图 ✅** | 长按抽屉 · 搜索 UI 打磨 |
 | **M3 生态** | 🔄 | `resume.mode: storage` 已跑通 ✅ + **脑力慢养续接卡 ✅（`lastGame` 算法，实测 `bf_progress`）** | Bridge 落地（title/toast/share/export/openTool 已写，待 H5 侧接入）· Bridge 上报通道（跨仓库，需 h5_tools 侧配合）· 常用置顶持久化 ✅（本地） |
-| **M4 运营** | 🔄 | 远端配置链路 ✅ + 内容嗅探 ✅ + 新鲜度保护 ✅ + **签名校验 ✅（HMAC-SHA256，真做）** + **配置 diff 提示 ✅（热更可审）** + 三份副本同步脚本 ✅ + 远端自查脚本 ✅ | 灰度 / 配置 diff 提示 / 签名校验 / 工具上下架与推荐位 |
-| **M5 扩展** | 🔄 | 深色模式 ✅ + **macOS 平台接入 ✅（出包 + 跑通 + 沙箱 entitlement）** | TestFlight 上传 · 桌面 Widget · 多语言 · 分享长图 · 平板/手表适配 |
+| **M4 运营** | 🔄 | 远端配置链路 ✅ + 内容嗅探 ✅ + 新鲜度保护 ✅ + **签名校验 ✅（HMAC-SHA256，真做）** + **配置 diff 提示 ✅（热更可审）** + **灰度发布 ✅（两份 URL + 设备稳定分桶，见 §5.13）** + 三份副本同步脚本 ✅ + 远端自查脚本 ✅ | 工具上下架与推荐位 |
+| **M5 扩展** | 🔄 | 深色模式 ✅ + **macOS 平台接入 ✅（出包 + 跑通 + 沙箱 entitlement）** + **分享长图 ✅（纸片风海报，见 §5.14）** | **仅剩**：TestFlight 上传（阻塞在 Apple 账号侧，步骤见 `docs/TESTFLIGHT.md`）<br>~~多语言 / 桌面 Widget / 平板手表适配~~ —— 用户明确「只要兼容手机」 |
 
-#### 实跑中修掉的 25 个真 BUG
+#### 实跑中修掉的 26 个真 BUG
 
 | # | 现象 | 根因 | 修法 |
 |---|---|---|---|
@@ -1071,6 +1117,7 @@ Flutter 侧：小工具页列数 `app.home.columns`（默认 2，clamp 1~3）。
 | 22 | `auto`（自动隐藏顶栏）档**完全失效** —— 通往 AGI 之路的顶栏永远压着内容，从不淡出 | `webview_host.dart` 注入滚动监听时判断的是 `config.webview.chrome.defaultMode == ChromeMode.auto`，而 `webview.chrome.default` 恒为 `minimal` → 条件永远为假 → `KmBridge.scrollScript` 从未被注入 → 页面不上报滚动方向 → 顶栏不淡出 | 改用当前工具的档位 `widget.tool.open.isAutoChrome`（判断入口收在 `OpenConfig.isAutoChrome`），并补 `app/test/chrome_test.dart` 守住；实跑验证：滚下去顶栏隐藏、滚回来顶栏显示、停手 1.5s 自动收起 |
 | 23 | 配置里有一整族「声明了但代码里从没读过」的**假开关** —— 运营改了以为生效，实际毫无反应 | `webview` 块里的 `javascriptEnabled` / `domStorageEnabled` / `databaseEnabled` / `allowFileAccess` / `allowContentAccess` / `mediaPlaybackRequiresUserGesture` / `cacheMode` 在 `webview_flutter` 里**没有对应平台 API**（或恒为 true）；`allowUniversalAccessFromFileUrls` 连模型里都没有 | 逐项审计（配置叶子路径 → 扫 `app/lib` 里的 `json['…']` 读取点）→ **8 个假开关从配置与模型里同时删除**；两个真开关 `handleHardwareBack` / `errorRetryInWebview` 真做实；新增 `app/test/config_contract_test.dart` 做「配置即契约」守卫，以后再出现孤儿字段就红 |
 | 24 | 脑力慢养的续接卡永远是「上一局还没打完」 | 配置写的是 `resume.mode: "bridge"`，但**没有任何 Bridge 上报通道** —— H5 侧没接，App 侧也就永远收不到 | 实测线上 bundle 摸清 `bf_progress` 的真实结构（今天没打完的那一局，H5 自己会清理过期）→ 新增 `ExtractKind.lastGame` 算法（三级降级：分数 → 步数 → 只有游戏名），`resume.mode` 改回 `storage`；游戏代码→中文名映射放进**配置**（App 不硬编码 H5 的知识） |
+| 26 | **iOS 上离线（Service Worker）一直没生效** —— Android 断网秒开，iOS 断网打不开 | WKWebView 的 Service Worker **默认关闭**，iOS 14+ 必须在 `Info.plist` 里配 `WKAppBoundDomains`（写 FQDN，不带 scheme）才开启；iOS ≤ 13 则**根本不支持**（WKWebView 不暴露 `navigator.serviceWorker`）。之前没配 → `register()` 静默失败 | `app/ios/Runner/Info.plist` 加 `WKAppBoundDomains = [kmlab.tech]`；同时确认 `IPHONEOS_DEPLOYMENT_TARGET` 已是 15.0 ⇒ **所有能装上本 App 的设备都是 iOS 15+，SW 可用** ⇒ 原计划的「L2 内置副本兜底」**取消**（它会换 origin，让 localStorage 与网页版分家，违反 D1 铁律） |
 | 25 | 「我的 → 签名校验」开关**点了没反应**（纯装饰）；`remote.requireSignature` 在 loader 里只有一行 `TODO(M4)`，**签名从来就没被校验过** | 与 BUG #23 同一族：配置声明了能力、代码没实现。签名开关连 `onChanged` 都没有，`_Switch(on: ...)` 只是个显示 | 新增 `lib/config/config_signature.dart`（纯 Dart HMAC-SHA256，零依赖）+ `lib/config/config_diff.dart`；`parseAndValidate` 改成同时拿到原始 Map 并在 `requireSignature` 时验签，不通过 → 拒绝沿用本地；签名开关改成真开关且**只能加严不能放松**；新增 `scripts/sign-config.sh` 与 `app/test/config_signature_test.dart`（用 Dart 验 python 签的文件，锁死跨语言一致性）；顺带补上「配置 diff 提示」，让热更可审（§4.4.2 / §4.4.3） |
 
 > ⚠️ 其余 `paperBorderRadius` 调用点（Container / BoxDecoration / RoundedRectangleBorder）**都支持椭圆角**，不用改 —— 只有 `OutlineInputBorder` 是雷。
@@ -1108,7 +1155,9 @@ app/
 │  │  │                          + exportPayload / importPayload / clearAllData
 │  │  ├─ resume_reader.dart     六种摘要算法 + maybeDecode
 │  │  ├─ data_transfer.dart     App 级导出全部 / 导入 / 清除全部
-│  │  └─ downloader.dart        下载抓取 + 文件名消毒（保留中文）
+│  │  ├─ downloader.dart        下载抓取 + 文件名消毒（保留中文）
+│  │  ├─ device_bucket.dart     灰度分桶（FNV-1a + murmur3 终混合，稳定不漂）
+│  │  └─ share_image.dart       长图抓取（RepaintBoundary → PNG）+ 系统分享
 │  ├─ theme/paper_theme.dart    PaperTokens(ThemeExtension) + 纸片主题 + seededTilt
 │  ├─ icons/doodle_icons.dart   9 个 kmlab doodle（内联 SVG）+ ~25 个 UI 图标
 │  ├─ util/native_toast.dart    原生 Toast 通道（Android / iOS / macOS）
@@ -1118,7 +1167,10 @@ app/
 │  │  ├─ tools_page.dart        小工具页
 │  │  ├─ tool_detail_page.dart  工具容器（chrome 四档 + ⋯ 菜单 + 导入导出）
 │  │  ├─ settings_page.dart     我的页
-│  │  └─ widgets/paper_widgets.dart  PaperCard / PaperButton / PaperBadge / TapeStrip …
+│  │  ├─ share_preview_dialog.dart 长图预览弹窗（先看后分享）
+│  │  └─ widgets/
+│  │     ├─ paper_widgets.dart   PaperCard / PaperButton / PaperBadge / TapeStrip …
+│  │     └─ share_card.dart      纸片风长图卡片（工具报告 / 使用报告）
 │  └─ webview/
 │     ├─ km_bridge.dart          window.KM 注入 + ready/scroll/edgeSwipe/pullToRefresh/snapshot 脚本
 │     └─ webview_host.dart       WebView 容器 + 兜底页 + 骨架屏 + ImmersiveHotZone
@@ -1130,7 +1182,8 @@ app/
 │  ├─ lastgame_test.dart                 脑力慢养 lastGame 算法单元测试（15 个用例）
 │  ├─ config_contract_test.dart          「配置即契约」守卫（5 个用例：孤儿字段 / 假开关 / 品牌溯源）
 │  ├─ config_signature_test.dart         HMAC-SHA256 向量 + 跨语言验签（23 个用例）
-│  └─ config_diff_test.dart              配置差异算法（19 个用例）
+│  ├─ config_diff_test.dart              配置差异算法（19 个用例）
+│  └─ canary_test.dart                   灰度分桶与判定（17 个用例）
 ├─ integration_test/app_smoke_test.dart  端上 UI 冒烟测试（4 个用例）
 ├─ test_driver/integration_test.dart      flutter drive 入口
 ├─ android/app/src/main/
@@ -1201,10 +1254,11 @@ app/
 ```
 webview_app/
 ├─ README.md                       快速开始 / 核心思路 12 条 / 三份副本说明 / 进度表
-├─ config/app.config.json          ★ 唯一真相源（602 行）
+├─ config/app.config.json          ★ 唯一真相源（唯一真相源）
 ├─ docs/
 │  ├─ DESIGN.md                    本文件
-│  └─ STORAGE_KEYS.md              8 工具 key 清单 + 六种摘要算法 + 字符串层说明
+│  ├─ STORAGE_KEYS.md              8 工具 key 清单 + 六种摘要算法 + 字符串层说明
+│  └─ TESTFLIGHT.md                iOS 上架逐步骤手册（路线 A 免费自用 / 路线 B TestFlight）
 ├─ prototype/index.html            设计示意图（4 页签 / 4 组 / 8 手机屏，单文件无构建）
 ├─ assets/
 │  ├─ icon.svg                     App 图标（= kmlab_site/public/favicon.svg）
@@ -1213,8 +1267,10 @@ webview_app/
 │  ├─ publish-config.sh            三份副本同步 + 自动盖 generatedAt + 生成 strings.xml
 │  ├─ verify-remote-config.sh      线上配置自查
 │  ├─ generate-icons.sh            ImageMagick 生成各平台图标
+│  ├─ sign-config.sh               配置签名（HMAC-SHA256，python 侧）
 │  ├─ setup-ios.sh                 iOS 工具链体检 + 修复引导
-│  └─ setup-testflight.sh          TestFlight 发布链路体检 + 引导（含 macOS）
+│  ├─ setup-testflight.sh          TestFlight 发布链路体检 + 引导（含 macOS）
+│  └─ run-ios-device.sh            路线 A：免费签到自己的 iPhone 上跑（7 天有效）
 └─ app/                            Flutter 工程 kmlab_toolbox（详见 §8.2）
 ```
 

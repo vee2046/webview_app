@@ -140,3 +140,14 @@ cat << 'EOF'
  附：macOS 版本同理，但要走「Mac Catalyst」之外的原生 macOS 目标，
     沙箱权限（network.client / files.user-selected.read-write）要在后台单独申请。
 EOF
+
+echo
+echo "═══════════════════════════════════════════════════════════"
+echo " 上架步骤的完整说明在这里（含每一步点哪里、看到什么、错了怎么办）："
+echo
+echo "   docs/TESTFLIGHT.md"
+echo
+echo " 只想装到自己手机上（免费、7 天有效）："
+echo "   ./scripts/run-ios-device.sh"
+echo "═══════════════════════════════════════════════════════════"
+

@@ -261,17 +261,30 @@ class KmBridge {
 (function () {
   if (window.__kmSwBound) { return; }
   window.__kmSwBound = true;
+  function say(action, extra) {
+    try {
+      var host = window.$channelName;
+      if (host && host.postMessage) {
+        var payload = { action: action };
+        if (extra) { for (var k in extra) { payload[k] = extra[k]; } }
+        host.postMessage(JSON.stringify(payload));
+      }
+    } catch (e) {}
+  }
   try {
-    if (!('serviceWorker' in navigator)) { return; }
+    if (!('serviceWorker' in navigator)) {
+      // iOS ≤13 根本不支持；iOS 14+ 还要 Info.plist 里配了 WKAppBoundDomains
+      say('swUnavailable', { reason: 'navigator.serviceWorker 不存在' });
+      return;
+    }
     navigator.serviceWorker.register('/sw.js', { scope: '/' }).then(function (reg) {
-      try {
-        var host = window.$channelName;
-        if (host && host.postMessage) {
-          host.postMessage(JSON.stringify({ action: 'swReady', scope: reg.scope }));
-        }
-      } catch (e) {}
-    }).catch(function () {});
-  } catch (e) {}
+      say('swReady', { scope: reg.scope });
+    }).catch(function (err) {
+      say('swUnavailable', { reason: String(err && err.message || err) });
+    });
+  } catch (e) {
+    say('swUnavailable', { reason: String(e) });
+  }
 })();
 ''';
 

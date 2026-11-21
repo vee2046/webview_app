@@ -7,11 +7,14 @@ library;
 import 'package:flutter/material.dart';
 
 import '../config/config_diff.dart';
+import '../data/share_image.dart';
 import '../data/usage_store.dart';
 import '../icons/doodle_icons.dart';
 import '../model/app_config.dart';
 import '../theme/paper_theme.dart';
 import '../util/native_toast.dart';
+import 'share_preview_dialog.dart';
+import 'widgets/share_card.dart';
 import 'widgets/paper_widgets.dart';
 
 class SettingsPage extends StatefulWidget {
@@ -75,6 +78,75 @@ class _SettingsPageState extends State<SettingsPage> {
       context,
       next ? '已开启签名校验：远端配置对不上就拒绝' : '已关闭本机签名校验',
     );
+  }
+
+  /// 生成分享长图：整个 App 的使用统计做成一张纸片海报。
+  Future<void> _shareReportCard() async {
+    if (!mounted) return;
+    final usage = widget.usage;
+    final recent = usage.recentToolIds.take(5).toList();
+    final today = usage.todayCount;
+    final streak = usage.streakDays;
+    final pinned = usage.pinned;
+
+    // 长图上只列前 2~3 个名字，其余用「等 N 个」收尾 —— 全列出来会把行撑成两行，
+    // 一张海报不该有折行。
+    String joinTitles(List<String> ids, {int max = 3}) {
+      final names = ids
+          .map((id) => widget.config.toolById(id)?.title ?? id)
+          .toList();
+      if (names.isEmpty) return '';
+      if (names.length <= max) return names.join(' · ');
+      return '${names.take(max).join(' · ')} 等 ${names.length} 个';
+    }
+
+    final rows = <ShareRow>[
+      ShareRow(
+        icon: 'clock',
+        label: '今天',
+        value: today > 0 ? '打开了 $today 个工具' : '今天还没打开工具',
+      ),
+      ShareRow(
+        icon: 'history',
+        label: '连续使用',
+        value: streak > 0 ? '$streak 天' : '还没开始',
+      ),
+      ShareRow(
+        icon: 'grid',
+        label: '常用工具',
+        value: pinned.isEmpty ? '还没固定' : joinTitles(pinned),
+      ),
+      if (recent.isNotEmpty)
+        ShareRow(
+          icon: 'book',
+          label: '最近',
+          value: joinTitles(recent),
+        ),
+      ShareRow(
+        icon: 'lock',
+        label: '数据存储',
+        value: '本机 · 与网页版同源',
+      ),
+    ];
+
+    final ok = await showSharePreview(
+      context,
+      fileName: ShareImage.fileName('report', DateTime.now()),
+      text: '我的 kmlab Toolbox 使用报告',
+      hint: '长图里是 App 侧的使用统计（网页内容不会被截图）',
+      cardBuilder: (w) => ShareReportCard(
+        width: w,
+        title: '我的使用报告',
+        subtitle: '${DateTime.now().year} 年 ${DateTime.now().month} 月',
+        iconName: 'box',
+        accent: context.paper.crayonAmber,
+        badge: streak > 0 ? '连续 $streak 天' : null,
+        rows: rows,
+        footerNote: '数据存在这台设备上，与网页版共享同一份存储。'
+            '换机可在「导出全部数据」里备份。',
+      ),
+    );
+    if (!ok && mounted) NativeToast.show(context, '已取消分享');
   }
 
   @override
@@ -223,6 +295,12 @@ class _SettingsPageState extends State<SettingsPage> {
           title: '清除全部数据',
           description: '清空最近记录、置顶与本地快照',
           onTap: () => widget.onClearAll?.call(),
+        ),
+        PaperSettingTile(
+          icon: 'image',
+          title: '生成分享长图',
+          description: '把使用统计做成一张纸片海报',
+          onTap: () => _shareReportCard(),
         ),
 
         // ── 关于 ──────────────────────────────────────────────

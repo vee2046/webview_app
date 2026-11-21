@@ -176,8 +176,9 @@ app/test/
 
 ## 文档
 
-- [设计文档 docs/DESIGN.md](docs/DESIGN.md) —— 架构、字段全表、品牌对齐表、校验规则、状态设计、13 条设计决策、迭代路线（M1~M5 全部排期 + 5 项跨仓库配合任务）、15 条拍板结果、11 条开发风险、**25 个实跑真 BUG**、iOS / macOS 适配要点（§5.9）、端上 UI 冒烟测试通道（§5.10）、App 级数据管理（§5.11）、拦截层（下载 / 外链，§5.12）、远端配置签名（§4.4.2）、配置 diff 提示（§4.4.3）
+- [设计文档 docs/DESIGN.md](docs/DESIGN.md) —— 架构、字段全表、品牌对齐表、校验规则、状态设计、13 条设计决策、迭代路线（M1~M5 全部排期 + 5 项跨仓库配合任务）、15 条拍板结果、11 条开发风险、**26 个实跑真 BUG**、iOS / macOS 适配要点（§5.9）、端上 UI 冒烟测试通道（§5.10）、App 级数据管理（§5.11）、拦截层（下载 / 外链，§5.12）、远端配置签名（§4.4.2）、配置 diff 提示（§4.4.3）、灰度发布（§5.13）、分享长图（§5.14）
 - [存储 key 清单 docs/STORAGE_KEYS.md](docs/STORAGE_KEYS.md) —— 8 个工具的真实 localStorage / IndexedDB key + 续接卡摘要算法
+- [**iOS 上架手册 docs/TESTFLIGHT.md**](docs/TESTFLIGHT.md) —— 逐步骤操作手册（点哪里 / 看到什么 / 错了怎么办）：路线 A 免费自用 + 路线 B 上架 TestFlight + 常见错误速查
 - [设计示意图 prototype/index.html](prototype/index.html) —— 可交互原型
 
 ## 当前进度
@@ -187,7 +188,7 @@ app/test/
 | 设计（示意图 / 文档 / 配置 Schema） | ✅ 定稿 |
 | P1 存储 key 清单 | ✅ 完成（`docs/STORAGE_KEYS.md`） |
 | M1 Flutter 骨架（模型 / 主题 / 图标 / 配置加载 / 数据层 / UI 层 / WebView 容器 / Bridge） | ✅ 代码完成，`flutter analyze` 0 issues |
-| 单元测试（摘要算法 / 快照往返 / 配置新鲜度 / App 级数据管理 / 下载解析 / chrome 档位 / lastGame / 配置契约 / HMAC 签名 / 配置差异） | ✅ **121 个用例全过**（8 个测试文件） |
+| 单元测试（摘要算法 / 快照往返 / 配置新鲜度 / App 级数据管理 / 下载解析 / chrome 档位 / lastGame / 配置契约 / HMAC 签名 / 配置差异 / 灰度分桶） | ✅ **138 个用例全过**（9 个测试文件） |
 | 模拟器实跑验证 | ✅ 已跑通（最近页 / 小工具页 / 我的页 / WebView 同源加载 / minimal & immersive chrome / ⋯ 溢出菜单 / 导出分享面板 / 返回键回最近页 / 沉浸式边缘下滑唤出工具栏） |
 | 续接卡摘要 | ✅ 已修（`maybeDecode` 解字符串层 + `countDateMap` 算法） |
 | 配置新鲜度保护（`generatedAt`） | ✅ 已实现（远端旧配置不覆盖内置新配置） |
@@ -199,14 +200,17 @@ app/test/
 | 下拉刷新（`open.pullToRefresh`） | ✅ 已实现（页面内 JS 监听 + 牛皮纸指示器，真机验证 reload 生效） |
 | 离线 L1：Service Worker | ✅ 已部署并实测：SW 激活 + 页面被接管 + 7 个工具入口全预缓存 + **断网秒开**（`svc wifi disable` 后 H5 完整渲染） |
 | 原生 Toast（不被 WebView 遮挡） | ✅ 已实现（`km/toast` MethodChannel） |
-| M2 离线 L2 内置副本 / 离线包管理页 / 导入恢复 | 🔄 进行中（L1 已完成，L2 是降级路径） |
+| ~~M2 离线 L2 内置副本~~ | 🚫 **取消** —— L2 换 origin 会让 localStorage 与网页版分家（违反 D1 铁律）。iOS 侧改用 `WKAppBoundDomains` 开启 SW（`IPHONEOS_DEPLOYMENT_TARGET` 已是 15.0 ⇒ 所有能装的设备都支持） |
 | iOS 出包验证 | ✅ 已跑通（Xcode 16.2；`xcode-select` 指错是根因，见 `scripts/setup-ios.sh`） |
 | 端上 UI 冒烟测试 | ✅ **双端各 4 个用例全过**（Android `flutter test integration_test` 1:27 / iOS `flutter drive`）—— 最近页 / 小工具页 / WebView 加载远程 H5 / 返回键 |
 | App 正式名 | ✅ 改为 `kmlab Toolbox`（纯英文；站点标题「kmlab · 工具」中英混排，桌面标签不适用） |
 | **App 级数据管理**（导出全部 / 导入 / 清除全部） | ✅ 已实现（`lib/data/data_transfer.dart`；导出 = `.json` → 系统分享面板；导入支持「合并 / 完全覆盖」；清除有二次确认 + 先导出出口） |
 | **macOS 平台** | ✅ 已接入并跑通（`flutter build macos --debug` 出包；渲染树验证 UI 正常；三个 entitlement 配齐；原生 Toast 浮层自绘） |
-| **TestFlight 上架** | 🔄 阻塞在账号侧（无 Apple 签名身份）—— `./scripts/setup-testflight.sh` 会逐条列出要做什么 |
+| **TestFlight 上架** | 🔄 阻塞在账号侧（无 Apple 签名身份）—— **逐步骤手册见 [docs/TESTFLIGHT.md](docs/TESTFLIGHT.md)**（路线 A 免费自用 5 步 / 路线 B 上架 40+ 步 / 常见错误速查）；`./scripts/setup-testflight.sh` 体检，`./scripts/run-ios-device.sh` 免费装到自己 iPhone |
 | **拦截层（下载 / 外链）** | ✅ 已实现（`onNavigationRequest` 五级判定；`blob:`/`data:` 下载、外链交系统浏览器并 Toast 提示、`.zip/.pdf/.xlsx` 等 29 种扩展名自动识别；`webview.interceptDownloads` 之前只声明没实现，现在真正接上了） |
 | **配置即契约**（假开关清理） | ✅ 8 个「声明了但代码从没读过」的假开关已从配置与模型删除；新增 `app/test/config_contract_test.dart` 做守卫 —— 以后配置里再出现孤儿字段，测试直接红 |
 | **脑力慢养续接卡** | ✅ 新增 `lastGame` 算法（实测线上 bundle 的 `bf_progress` 真实结构）；游戏代码→中文名映射放在配置里，App 不硬编码 H5 的知识 |
+| **灰度发布** | ✅ 两份 URL + 设备稳定分桶（FNV-1a + murmur3 `fmix32` 终混合；同一设备永远同一个桶）；`remote.canaryUrl` + `remote.rolloutPercent`（0~100） |
+| **分享长图** | ✅ 纸片风海报（RepaintBoundary → PNG → 系统分享面板）；两个入口：工具 ⋯ 菜单「生成分享长图」+ 我的页「生成分享长图」；先弹预览再分享 |
+| **iOS 离线修复** | ✅ 补 `WKAppBoundDomains = [kmlab.tech]`（iOS 14+ 的 SW 默认关闭，不配就静默失效 —— 之前 iOS 上离线一直没生效） |
 | **chrome 四档** | ✅ `minimal` / `auto` / `immersive` / `full` 全部实跑验证：`auto` 档滚动淡出 + 停手 1.5s 自动收起（`autoHideDelayMs`）；`immersive` 档真全屏 + 顶部热区边缘下滑唤出工具栏 + 默认不显示进度条（`keepProgressBarInImmersive`） |

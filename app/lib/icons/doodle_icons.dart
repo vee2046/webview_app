@@ -94,6 +94,9 @@ const Map<String, String> _ui = {
   'lock': '<rect x="4.8" y="10.4" width="14.4" height="9.4" rx="2.2"/><path d="M8.2 10.4V7.8a3.8 3.8 0 0 1 7.6 0v2.6"/>',
   'toolbox':
       '<path d="M3.4 10.4h17.2v8.2a1.8 1.8 0 0 1-1.8 1.8H5.2a1.8 1.8 0 0 1-1.8-1.8Z"/><path d="M8.6 10.4V7.8a1.8 1.8 0 0 1 1.8-1.8h3.2a1.8 1.8 0 0 1 1.8 1.8v2.6"/><path d="M3.4 14.6h17.2"/>',
+  // 「分享长图」用：一张照片 + 右上角的小太阳（画框 + 折角 + 山）
+  'image':
+      '<rect x="3.2" y="4.6" width="17.6" height="14.8" rx="2.2"/><circle cx="8.6" cy="9.4" r="1.7"/><path d="M3.6 16.4l4.4-4 3.2 2.8 3.6-3.6 5.2 5"/>',
 };
 
 /// 取得 doodle 的 SVG 源码；未知名字回退到 `box`（与 kmlab_site 的 `doodleDefault` 一致）

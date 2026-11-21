@@ -121,6 +121,8 @@ class RemoteConfig {
     required this.refreshOnLaunch,
     required this.hotReload,
     required this.requireSignature,
+    this.canaryUrl = '',
+    this.rolloutPercent = 0,
   });
 
   final bool enabled;
@@ -130,6 +132,19 @@ class RemoteConfig {
   final bool hotReload;
   final bool requireSignature;
 
+  /// 灰度配置地址（可选）。为空 = 没开灰度。
+  ///
+  /// ⚠️ 为什么必须是**两个 URL** 而不是「一份配置 + 一个百分比」：
+  /// 百分比得写在**稳定版**那份配置里（因为决定「我拉哪个地址」的是稳定版）。
+  /// 如果把它写在灰度版里，不在灰度组的设备永远看不到它，也就永远升不到 100%。
+  final String canaryUrl;
+
+  /// 灰度流量比例（0~100）。`bucket < rolloutPercent` 的设备拉灰度版。
+  final int rolloutPercent;
+
+  /// 有没有开灰度。
+  bool get hasCanary => canaryUrl.isNotEmpty && rolloutPercent > 0;
+
   static const RemoteConfig fallback = RemoteConfig(
     enabled: false,
     configUrl: '',
@@ -137,6 +152,8 @@ class RemoteConfig {
     refreshOnLaunch: false,
     hotReload: false,
     requireSignature: false,
+    canaryUrl: '',
+    rolloutPercent: 0,
   );
 
   factory RemoteConfig.fromJson(Map<String, dynamic> json) => RemoteConfig(
@@ -146,6 +163,9 @@ class RemoteConfig {
         refreshOnLaunch: json['refreshOnLaunch'] as bool? ?? false,
         hotReload: json['hotReload'] as bool? ?? false,
         requireSignature: json['requireSignature'] as bool? ?? false,
+        canaryUrl: json['canaryUrl'] as String? ?? '',
+        rolloutPercent: ((json['rolloutPercent'] as num?)?.toInt() ?? 0)
+            .clamp(0, 100),
       );
 
   Map<String, dynamic> toJson() => {
@@ -155,6 +175,8 @@ class RemoteConfig {
         'refreshOnLaunch': refreshOnLaunch,
         'hotReload': hotReload,
         'requireSignature': requireSignature,
+        'canaryUrl': canaryUrl,
+        'rolloutPercent': rolloutPercent,
       };
 
   RemoteConfig copyWith({
@@ -164,6 +186,8 @@ class RemoteConfig {
     bool? refreshOnLaunch,
     bool? hotReload,
     bool? requireSignature,
+    String? canaryUrl,
+    int? rolloutPercent,
   }) =>
       RemoteConfig(
         enabled: enabled ?? this.enabled,
@@ -172,6 +196,8 @@ class RemoteConfig {
         refreshOnLaunch: refreshOnLaunch ?? this.refreshOnLaunch,
         hotReload: hotReload ?? this.hotReload,
         requireSignature: requireSignature ?? this.requireSignature,
+        canaryUrl: canaryUrl ?? this.canaryUrl,
+        rolloutPercent: rolloutPercent ?? this.rolloutPercent,
       );
 }
 
