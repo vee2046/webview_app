@@ -41,6 +41,17 @@ flutter drive \
 ./scripts/setup-testflight.sh --build  # 体检 + 打一个 macOS release 包（本机跑）
 ```
 
+### 出包产物在哪
+
+| 平台 | 命令 | 产物路径 |
+|---|---|---|
+| Android | `flutter build apk --release` | `app/build/app/outputs/flutter-apk/app-release.apk`（约 55MB，debug key 签名，可直接侧载） |
+| Android（调试） | `flutter build apk --debug` | `app/build/app/outputs/flutter-apk/app-debug.apk` |
+| iOS | `flutter build ios --release --no-codesign` | `app/build/ios/iphoneos/Runner.app`（**没有签名**，要上架得在 Xcode 里 Archive） |
+| macOS | `flutter build macos --release` | `app/build/macos/Build/Products/Release/kmlab Toolbox.app`（ad-hoc 签名，**只能本机跑**；上架要走 Mac App Store，不走 TestFlight） |
+
+> iOS / macOS 的**正式签名包**必须由 Xcode 的 Archive 流程产出（脚本代劳不了），步骤见 [docs/TESTFLIGHT.md](docs/TESTFLIGHT.md)。
+
 > **TestFlight 需要的账号前提**（脚本代劳不了，会逐条列给你）：
 > ① 付费的 Apple Developer Program 账号（$99/年，免费账号不能上架）
 > ② Xcode → Settings → Accounts 登录该账号 → 自动生成「Apple Distribution」证书
