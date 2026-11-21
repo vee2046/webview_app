@@ -1240,7 +1240,7 @@ class _AboutSheet extends StatelessWidget {
   /// 站内 Service Worker 是否已就绪（= 断网也能打开）
   final bool offlineReady;
 
-  /// 本平台没有 Service Worker API（iOS 限制）。
+  /// 本平台没有 Service Worker API（iOS 的平台限制：需 Apple 域名验证）。
   final bool offlineUnsupported;
 
   @override
@@ -1314,7 +1314,7 @@ class _AboutSheet extends StatelessWidget {
                 tool.offline.enabled ? (tool.offline.size ?? '已缓存') : '无'),
             row('断网可用', offlineReady
                 ? '已缓存到本机'
-                : (offlineUnsupported ? '此平台不支持（iOS 限制）' : '首次访问后自动缓存')),
+                : (offlineUnsupported ? '此平台不支持（需域名验证）' : '首次访问后自动缓存')),
             row('数据存储', '本机 · 与网页版共享'),
             row('来源', tool.url),
             const SizedBox(height: 10),

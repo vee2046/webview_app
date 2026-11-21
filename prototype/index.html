@@ -1861,6 +1861,7 @@ footer .wave{font-family:'Caveat',cursive;font-size:1.2rem;color:var(--crayon-am
         <tr><td>R9</td><td><code>html_files.json</code> 与 <code>app.config.json</code> 两份清单可能不同步</td><td><span class="tag-no">低</span></td><td><code>app.config.json</code> 是 App 的唯一真相源；站内清单只作参考，运营只改 <code>app.json</code></td></tr>
         <tr><td>R10</td><td>远端配置发布滞后，会把 App 打回旧行为</td><td><span class="tag-warn">中</span></td><td>配置带 <code>generatedAt</code> 时间戳；远端比本地旧（或缺这个字段）一律拒绝并沿用本地</td></tr>
         <tr><td>R11</td><td>WebView 是 PlatformView，Flutter 盖在上面的手势层收不到落在 WebView 区域的触摸</td><td><span class="tag-warn">中</span></td><td>需要页面内手势时由<b>页面 JS 监听后回传</b>，不靠 Flutter 的 <code>GestureDetector</code>；Flutter 覆盖层上的按钮仍可点</td></tr>
+        <tr><td>R12</td><td><b>iOS 上没有离线能力</b> —— iOS 的 WKWebView 只在「已验证的 app-bound domain」里才暴露 <code>navigator.serviceWorker</code>（<b>macOS 实测可用</b>，只有 iOS 不行）</td><td><span class="tag-warn">中</span></td><td>如实显示「此平台不支持（需域名验证）」而不是假装能离线；<b>千万别加 <code>WKAppBoundDomains</code></b> —— 声明它会让所有 WKWebView 进入严格模式、整个 JS Bridge 全废；拿到 Apple 账号后按 DESIGN.md §5.9 的四步开</td></tr>
       </tbody>
     </table>
   </section>

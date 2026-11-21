@@ -176,7 +176,9 @@ void main() {
     // 「断网可用」这一行必须是**确定结论**，不能停在「首次访问后自动缓存」
     // —— 那说明 App 压根没探测到离线能力（BUG #28）。
     final cached = find.text('已缓存到本机');
-    final unsupported = find.text('此平台不支持（iOS 限制）');
+    final unsupported = find.text('此平台不支持（需域名验证）');
+    final platformName =
+        Platform.isAndroid ? 'Android' : (Platform.isIOS ? 'iOS' : 'macOS');
 
     if (Platform.isIOS) {
       // iOS 的 WKWebView **只在已验证的 app-bound domain 里**才暴露
@@ -186,13 +188,14 @@ void main() {
       expect(
         unsupported,
         findsWidgets,
-        reason: 'iOS 上 SW API 不存在，应显示「此平台不支持（iOS 限制）」',
+        reason: 'iOS 上 SW API 不存在，应显示「此平台不支持（需域名验证）」',
       );
     } else {
+      // Android 与 macOS 的 WKWebView 都直接暴露 Service Worker API
       expect(
         cached,
         findsWidgets,
-        reason: 'Android 上 Service Worker 应注册成功，显示「已缓存到本机」',
+        reason: '$platformName 上 Service Worker 应注册成功，显示「已缓存到本机」',
       );
     }
     await shot('05_sw');

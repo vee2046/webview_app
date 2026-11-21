@@ -39,7 +39,7 @@
 | Android 实跑 | ✅ 模拟器 emulator-5554 全功能验证通过 |
 | iOS 实跑 | ✅ 模拟器 D2D6D351（iPhone 16 / iOS 18.2）验证通过 |
 | 端上 UI 冒烟测试 | ✅ `flutter drive` 4 用例，iOS + Android 双端可跑 |
-| 实跑中修掉的真 BUG | 25 个（见 §8.0） |
+| 实跑中修掉的真 BUG | 27 个（见 §8.0） |
 
 ---
 
@@ -753,7 +753,7 @@ App 一旦接管 `goBack()`，就会和 H5 自己的路由形成**两套历史�
 | `runJavaScriptReturningResult` | **双重 JSON 编码** | 单层 | 单层 | 统一按「字符串→字符串→Map」多解两层 |
 | DOM Storage | 内部固定开 | 默认非 ephemeral data store 即开 | 同 iOS | **无需平台特定调用** |
 | `evaluateJavaScript`（JS 注入） | ✅ | ✅（**前提：Info.plist 不声明 `WKAppBoundDomains`**） | ✅（macOS 也没声明） | 无需特殊处理；详见下方「App-Bound Domains」 |
-| Service Worker（离线） | ✅ 可用 | ❌ `navigator.serviceWorker` 是 **undefined** | ❌ 同 iOS | 启动时探测 SW API；不可用就**如实显示「此平台不支持」**，不假装 |
+| Service Worker（离线） | ✅ 可用 | ❌ `navigator.serviceWorker` 是 **undefined** | ✅ **实测可用**（`object|function`，注册成功 `scope=https://kmlab.tech/`） | 探测 SW API 存不存在：iOS 报「不支持」、注册失败报「首次访问后自动缓存」、成功报「已缓存到本机」 |
 | 上架沙箱 | 无 | 无 | ⚠️ **必须开 App Sandbox** | 与业务无关，但决定能不能上 Mac App Store |
 
 > **结论**：Dart 层 **100% 三端共用**，平台差异只有三处（`setUserAgent` 的可用性、Toast 的呈现方式、macOS 的沙箱 entitlement）。
@@ -777,7 +777,7 @@ App 一旦接管 `goBack()`，就会和 H5 自己的路由形成**两套历史�
 
 #### 🔴 App-Bound Domains：iOS 的隐形杀手（把整个 Bridge 打死的元凶）
 
-这是 iOS 侧**最贵的一个坑**，坑了整整两轮才挖出来（见 §8.0 的 BUG #26 / #28）。
+这是 iOS 侧**最贵的一个坑**，坑了整整两轮才挖出来（见 §8.0 的 BUG #26 / #27）。
 
 **Apple 的规则**（WebKit 官方博客 <https://webkit.org/blog/10882/app-bound-domains>）：
 
@@ -818,7 +818,7 @@ com.apple.WebKit.WebContent  [com.apple.WebKit:Process]
 | `localStorage` 快照 | ❌ 读不回来 → **续接卡永远「还没开始」** |
 | JS channel（`window.KmHost`） | ❌ 页面里是 `undefined` → `swReady` / `toast` 全收不到 |
 | 下拉刷新 / 下载拦截 / 边缘下滑 | ❌ 全部失效 |
-| **Service Worker（离线）** | ❌ **照样用不了** —— 因为域名根本没被验证 |
+| **Service Worker（离线）** | ❌ **照样用不了** —— 因为域名根本没被验证（iOS 侧；macOS 未声明该键，不受影响） |
 
 **最后一格是最讽刺的**：加 `WKAppBoundDomains` 的**初衷**就是修 iOS 离线（BUG #26），
 结果**离线没修好，反而把原本好使的 Bridge 全打死了**。
@@ -844,6 +844,14 @@ com.apple.WebKit.WebContent  [com.apple.WebKit:Process]
 > ⚠️ **同一条规则也适用于 macOS**（macOS 14+ 同样有 App-Bound Domains）。
 > 本项目的 `macos/Runner/Info.plist` **本来就没写这个键**，所以 macOS 侧不受影响；
 > 但别手贱加 —— 加之前先读完这一节。
+>
+> **实测差异（很反直觉，值得记住）**：
+> - **iOS**：`navigator.serviceWorker` = `undefined` ⇒ **没有离线**（平台硬限制，要开 app-bound 域名验证才有）
+> - **macOS**：同样是 WKWebView、同样没声明 `WKAppBoundDomains`，但 `navigator.serviceWorker` = `object|function`，
+>   `register('/sw.js')` **注册成功**（`scope=https://kmlab.tech/`）⇒ **macOS 有离线能力**
+> - **Android**：SW 就绪，断网秒开（最早实测通过）
+>
+> ⇒ 三端的离线能力矩阵是 **Android ✅ / macOS ✅ / iOS ❌**，代码里用「启动时探测 SW API」而不是写死平台判断。
 
 #### iOS 原生 Toast 浮层
 
@@ -896,7 +904,7 @@ dev_dependencies:
 | ② | 小工具页能渲染出工具卡片 | 卡片数量 > 0 |
 | ③ | 点开工具 → WebView 加载到远程 H5 | 兜底页文案「这一页没打开」**不出现** |
 | ④ | 顶栏返回 → 回到根页面 | 回到根路由 |
-| ⑤ | 离线能力被如实探测并显示 | Android 显示「已缓存到本机」；iOS 显示「此平台不支持（iOS 限制）」—— **两端各自的结果都要是确定结论**，不能停在「首次访问后自动缓存」 |
+| ⑤ | 离线能力被如实探测并显示 | **Android / macOS** 显示「已缓存到本机」；**iOS** 显示「此平台不支持（需域名验证）」—— **三端各自的结果都要是确定结论**，不能停在「首次访问后自动缓存」 |
 | ⑥ | JS Bridge 注入成功 | 「关于这个工具」里能读到真实 URL（说明页面活着、JS 通道没被拦） |
 
 #### 关键技术点
@@ -1165,13 +1173,13 @@ Flutter 侧：小工具页列数 `app.home.columns`（默认 2，clamp 1~3）。
 
 | 里程碑 | 状态 | 已完成 | 待做 |
 |---|---|---|---|
-| **M1 骨架** | ✅ | Flutter 工程 + 配置加载器 + 最近页（首屏）+ 小工具页 + 我的页 + WebView 容器（minimal/full/auto）+ 返回键 + 品牌资产（图标/分类/工具名/doodle）+ **App 正式名 `kmlab Toolbox`** + 单元测试（121 个用例） | iOS / macOS 正式签名出包 |
-| **M2 体验** | ✅ | chrome 四档 ✅（**minimal / auto / immersive / full 全部实跑验证**，含 immersive 顶部热区边缘下滑 + auto 档滚动淡出 + 停手 1.5s 自动收起） + 续接卡摘要 ✅ + ⋯ 溢出菜单（12 动作分组）✅ + 下拉刷新 ✅ + 加载进度 ✅ + 失败兜底页 ✅ + 导出分享面板 ✅ + **App 级数据管理（导出全部/导入/清除全部）✅** + 原生 Toast 通道 ✅ + 端上 UI 冒烟测试通道 ✅ + **离线 L1 Service Worker ✅（Android 已部署并实测断网秒开；iOS/macOS 需「已验证的 app-bound domain」，无 Apple 账号时**如实显示「此平台不支持」**，见 §5.9 与 BUG #28）** + **拦截层（下载 / 外链）✅** + **分享长图 ✅** | 长按抽屉 · 搜索 UI 打磨 |
+| **M1 骨架** | ✅ | Flutter 工程 + 配置加载器 + 最近页（首屏）+ 小工具页 + 我的页 + WebView 容器（minimal/full/auto）+ 返回键 + 品牌资产（图标/分类/工具名/doodle）+ **App 正式名 `kmlab Toolbox`** + 单元测试（**138 个用例**） | iOS / macOS 正式签名出包 |
+| **M2 体验** | ✅ | chrome 四档 ✅（**minimal / auto / immersive / full 全部实跑验证**，含 immersive 顶部热区边缘下滑 + auto 档滚动淡出 + 停手 1.5s 自动收起） + 续接卡摘要 ✅ + ⋯ 溢出菜单（12 动作分组）✅ + 下拉刷新 ✅ + 加载进度 ✅ + 失败兜底页 ✅ + 导出分享面板 ✅ + **App 级数据管理（导出全部/导入/清除全部）✅** + 原生 Toast 通道 ✅ + 端上 UI 冒烟测试通道 ✅ + **离线 L1 Service Worker ✅（Android 已部署并实测断网秒开；macOS 实测 SW 也可用 ✅；**iOS 需「已验证的 app-bound domain」，无 Apple 账号时如实显示「此平台不支持」**，见 §5.9 与 BUG #27）** + **拦截层（下载 / 外链）✅** + **分享长图 ✅** | 长按抽屉 · 搜索 UI 打磨 |
 | **M3 生态** | 🔄 | `resume.mode: storage` 已跑通 ✅ + **脑力慢养续接卡 ✅（`lastGame` 算法，实测 `bf_progress`）** | Bridge 落地（title/toast/share/export/openTool 已写，待 H5 侧接入）· Bridge 上报通道（跨仓库，需 h5_tools 侧配合）· 常用置顶持久化 ✅（本地） |
 | **M4 运营** | 🔄 | 远端配置链路 ✅ + 内容嗅探 ✅ + 新鲜度保护 ✅ + **签名校验 ✅（HMAC-SHA256，真做）** + **配置 diff 提示 ✅（热更可审）** + **灰度发布 ✅（两份 URL + 设备稳定分桶，见 §5.13）** + 三份副本同步脚本 ✅ + 远端自查脚本 ✅ | 工具上下架与推荐位 |
 | **M5 扩展** | 🔄 | 深色模式 ✅ + **macOS 平台接入 ✅（出包 + 跑通 + 沙箱 entitlement）** + **分享长图 ✅（纸片风海报，见 §5.14）** | **仅剩**：TestFlight 上传（阻塞在 Apple 账号侧，步骤见 `docs/TESTFLIGHT.md`；拿到账号后按 §5.9 开 App-Bound Domains 才有 iOS 离线）<br>~~多语言 / 桌面 Widget / 平板手表适配~~ —— 用户明确「只要兼容手机」 |
 
-#### 实跑中修掉的 28 个真 BUG
+#### 实跑中修掉的 27 个真 BUG
 
 | # | 现象 | 根因 | 修法 |
 |---|---|---|---|
@@ -1199,9 +1207,9 @@ Flutter 侧：小工具页列数 `app.home.columns`（默认 2，clamp 1~3）。
 | 22 | `auto`（自动隐藏顶栏）档**完全失效** —— 通往 AGI 之路的顶栏永远压着内容，从不淡出 | `webview_host.dart` 注入滚动监听时判断的是 `config.webview.chrome.defaultMode == ChromeMode.auto`，而 `webview.chrome.default` 恒为 `minimal` → 条件永远为假 → `KmBridge.scrollScript` 从未被注入 → 页面不上报滚动方向 → 顶栏不淡出 | 改用当前工具的档位 `widget.tool.open.isAutoChrome`（判断入口收在 `OpenConfig.isAutoChrome`），并补 `app/test/chrome_test.dart` 守住；实跑验证：滚下去顶栏隐藏、滚回来顶栏显示、停手 1.5s 自动收起 |
 | 23 | 配置里有一整族「声明了但代码里从没读过」的**假开关** —— 运营改了以为生效，实际毫无反应 | `webview` 块里的 `javascriptEnabled` / `domStorageEnabled` / `databaseEnabled` / `allowFileAccess` / `allowContentAccess` / `mediaPlaybackRequiresUserGesture` / `cacheMode` 在 `webview_flutter` 里**没有对应平台 API**（或恒为 true）；`allowUniversalAccessFromFileUrls` 连模型里都没有 | 逐项审计（配置叶子路径 → 扫 `app/lib` 里的 `json['…']` 读取点）→ **8 个假开关从配置与模型里同时删除**；两个真开关 `handleHardwareBack` / `errorRetryInWebview` 真做实；新增 `app/test/config_contract_test.dart` 做「配置即契约」守卫，以后再出现孤儿字段就红 |
 | 24 | 脑力慢养的续接卡永远是「上一局还没打完」 | 配置写的是 `resume.mode: "bridge"`，但**没有任何 Bridge 上报通道** —— H5 侧没接，App 侧也就永远收不到 | 实测线上 bundle 摸清 `bf_progress` 的真实结构（今天没打完的那一局，H5 自己会清理过期）→ 新增 `ExtractKind.lastGame` 算法（三级降级：分数 → 步数 → 只有游戏名），`resume.mode` 改回 `storage`；游戏代码→中文名映射放进**配置**（App 不硬编码 H5 的知识） |
-| 26 | **iOS 上离线（Service Worker）一直没生效** —— Android 断网秒开，iOS 断网打不开 | WKWebView 的 Service Worker **默认关闭**，iOS 14+ 需要「已验证的 app-bound domain」才暴露 `navigator.serviceWorker`。当时没配 → `register()` 静默失败 | 当时的解法（在 Info.plist 加 `WKAppBoundDomains`）**被 BUG #28 推翻**：域名没经过 Apple 验证，加了等于把整个 Bridge 打死。**现行解法**：iOS 侧如实显示「此平台不支持（iOS 限制）」，离线等账号侧条件齐了再开（§5.9）；原计划的「L2 内置副本兜底」**取消**（它会换 origin，让 localStorage 与网页版分家，违反 D1 铁律） |
-| 28 | 🔴 **iOS 上整个 JS Bridge 全废** —— `window.KM` 注不进去、`localStorage` 快照读不回来（续接卡永远「还没开始」）、下拉刷新 / 下载拦截 / 边缘下滑全失效、JS channel 是 `undefined` | **BUG #26 的修法引入了新问题**：在 `Info.plist` 里声明 `WKAppBoundDomains` 会让**所有** WKWebView 进入严格模式（Apple 的 App-Bound Domains 规则），拒绝 JS 注入 / 用户脚本 / message handler —— 除非域名**已被 Apple 验证**。kmlab.tech 没走 Associated Domains + `apple-app-site-association` 验证（需要付费 Apple 账号与真机签名，本机 `security find-identity` = 0 个证书）⇒ WebKit 报 `Unable to execute JavaScript in a frame that is not in an app-bound domain` | **删掉 `WKAppBoundDomains`**（Info.plist 里留注释说明为什么、以及将来怎么开）；`_injectBridge()` 的 try/catch 不再静默吞异常（改成逐步 `debugPrint` + 每段独立 try/catch + 超时）；新增 `decodeJsValue()` 修 Android 的双重 JSON 编码（否则 `state.startsWith('ready')` 永远 false）；新增 `swSupportScript` 探测 `navigator.serviceWorker` 到底存不存在，把「不支持」与「注册失败」分开；UI 如实显示「此平台不支持（iOS 限制）」；**实测：iOS + Android 双端冒烟测试 7 个用例全过** |
 | 25 | 「我的 → 签名校验」开关**点了没反应**（纯装饰）；`remote.requireSignature` 在 loader 里只有一行 `TODO(M4)`，**签名从来就没被校验过** | 与 BUG #23 同一族：配置声明了能力、代码没实现。签名开关连 `onChanged` 都没有，`_Switch(on: ...)` 只是个显示 | 新增 `lib/config/config_signature.dart`（纯 Dart HMAC-SHA256，零依赖）+ `lib/config/config_diff.dart`；`parseAndValidate` 改成同时拿到原始 Map 并在 `requireSignature` 时验签，不通过 → 拒绝沿用本地；签名开关改成真开关且**只能加严不能放松**；新增 `scripts/sign-config.sh` 与 `app/test/config_signature_test.dart`（用 Dart 验 python 签的文件，锁死跨语言一致性）；顺带补上「配置 diff 提示」，让热更可审（§4.4.2 / §4.4.3） |
+| 26 | **iOS 上离线（Service Worker）一直没生效** —— Android 断网秒开，iOS 断网打不开 | WKWebView 的 Service Worker **默认关闭**，iOS 14+ 需要「已验证的 app-bound domain」才暴露 `navigator.serviceWorker`。当时没配 → `register()` 静默失败 | 当时的解法（在 Info.plist 加 `WKAppBoundDomains`）**被 BUG #28 推翻**：域名没经过 Apple 验证，加了等于把整个 Bridge 打死。**现行解法**：iOS 侧如实显示「此平台不支持（需域名验证）」，离线等账号侧条件齐了再开（§5.9）；**macOS 实测 SW 可用，不受影响**；原计划的「L2 内置副本兜底」**取消**（它会换 origin，让 localStorage 与网页版分家，违反 D1 铁律） |
+| 27 | 🔴 **iOS 上整个 JS Bridge 全废** —— `window.KM` 注不进去、`localStorage` 快照读不回来（续接卡永远「还没开始」）、下拉刷新 / 下载拦截 / 边缘下滑全失效、JS channel 是 `undefined` | **BUG #26 的修法引入了新问题**：在 `Info.plist` 里声明 `WKAppBoundDomains` 会让**所有** WKWebView 进入严格模式（Apple 的 App-Bound Domains 规则），拒绝 JS 注入 / 用户脚本 / message handler —— 除非域名**已被 Apple 验证**。kmlab.tech 没走 Associated Domains + `apple-app-site-association` 验证（需要付费 Apple 账号与真机签名，本机 `security find-identity` = 0 个证书）⇒ WebKit 报 `Unable to execute JavaScript in a frame that is not in an app-bound domain` | **删掉 `WKAppBoundDomains`**（Info.plist 里留注释说明为什么、以及将来怎么开）；`_injectBridge()` 的 try/catch 不再静默吞异常（改成逐步 `debugPrint` + 每段独立 try/catch + 超时）；新增 `decodeJsValue()` 修 Android 的双重 JSON 编码（否则 `state.startsWith('ready')` 永远 false）；新增 `swSupportScript` 探测 `navigator.serviceWorker` 到底存不存在，把「不支持」与「注册失败」分开；UI 如实显示「此平台不支持（需域名验证）」；**实测：Android / iOS / macOS 三端冒烟测试各 6 个用例全过**（Android 2:00 / iOS 1:28 / macOS 1:32） |
 
 > ⚠️ 其余 `paperBorderRadius` 调用点（Container / BoxDecoration / RoundedRectangleBorder）**都支持椭圆角**，不用改 —— 只有 `OutlineInputBorder` 是雷。
 
@@ -1329,7 +1337,7 @@ app/
 | R9 | `html_files.json` 与 `app.config.json` 两份清单可能不同步 | 低 | `app.config.json` 是 App 的唯一真相源；站内清单只作参考 |
 | R10 | 远端配置发布滞后，会把 App 打回旧行为 | 中 | 配置带 `generatedAt`；远端比本地旧（或缺这个字段）一律拒绝并沿用本地（§4.4.1） |
 | R11 | WebView 是 PlatformView，Flutter 盖在上面的手势层收不到落在 WebView 区域的触摸 | 中 | 需要页面内手势时由页面 JS 监听后回传，不靠 Flutter 的 `GestureDetector`；Flutter 覆盖层上的按钮仍可点（§5.3 ②） |
-| R12 | **iOS / macOS 上没有离线能力** —— WKWebView 只在「已验证的 app-bound domain」里暴露 `navigator.serviceWorker`；没有 Apple 开发者账号就拿不到验证 | 中 | 如实显示「此平台不支持（iOS 限制）」而不是假装能离线；Android 侧 SW 离线已实测断网秒开；**拿到 Apple 账号后按 §5.9 的四步开 app-bound domain**（改 `Info.plist` + Associated Domains + 站点 AASA + 真机验证） |
+| R12 | **iOS 上没有离线能力** —— iOS 的 WKWebView 只在「已验证的 app-bound domain」里暴露 `navigator.serviceWorker`；没有 Apple 开发者账号就拿不到验证（**macOS 实测 SW 可用，不受影响**） | 中 | 如实显示「此平台不支持（需域名验证）」而不是假装能离线；Android / macOS 侧 SW 离线已实测可用；**拿到 Apple 账号后按 §5.9 的四步开 app-bound domain**（改 `Info.plist` + Associated Domains + 站点 AASA + 真机验证） |
 
 ---
 

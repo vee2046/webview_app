@@ -4,22 +4,34 @@ import FlutterMacOS
 /// kmlab Toolbox · macOS 宿主窗口
 ///
 /// 只做两件事：
-///  1. 把 Flutter 引擎的 binaryMessenger 交给 `km/toast` 通道；
-///  2. 自绘一个「纸片风」原生 Toast —— 因为 macOS 没有系统 Toast，
-///     而 Flutter 的 SnackBar 会被 PlatformView（WebView）整个盖住
-///     （见 DESIGN.md BUG #12，与 Android 同一个根因）。
+///  1. 按 Flutter 模板创建 `FlutterViewController` 并注册插件；
+///  2. 把引擎的 binaryMessenger 挂到 `km/toast` 通道，自绘一个「纸片风」原生
+///     Toast —— 因为 macOS 没有系统 Toast，而 Flutter 的 SnackBar 会被
+///     PlatformView（WebView）整个盖住（见 DESIGN.md BUG #12，与 Android 同根因）。
+///
+/// ⚠️ **模板结构不能删**：`RegisterGeneratedPlugins(registry:)` 是所有插件
+///    （webview_flutter_wkwebview / shared_preferences / path_provider …）在
+///    macOS 上生效的唯一入口 —— 少了它，WebView 会一直是空白。
 class MainFlutterWindow: NSWindow {
 
     /// Toast 文案
     private var toastLabel: NSTextField?
 
     override func awakeFromNib() {
-        super.awakeFromNib()
+        // ── 模板原样：创建视图控制器 + 注册插件 ──────────────────
+        let flutterViewController = FlutterViewController()
+        let windowFrame = self.frame
+        self.contentViewController = flutterViewController
+        self.setFrame(windowFrame, display: true)
 
-        let controller = mainFlutterViewController as! FlutterViewController
+        RegisterGeneratedPlugins(registry: flutterViewController)
+
+        // ── 本项目新增：km/toast 通道 ───────────────────────────
+        // `FlutterViewController.engine` 是 non-null（视图控制器会隐式创建引擎），
+        // 所以这里可以安全地拿它的 binaryMessenger。
         let channel = FlutterMethodChannel(
             name: "km/toast",
-            binaryMessenger: controller.engine.binaryMessenger
+            binaryMessenger: flutterViewController.engine.binaryMessenger
         )
         channel.setMethodCallHandler { [weak self] call, result in
             guard call.method == "show" else {
@@ -32,6 +44,8 @@ class MainFlutterWindow: NSWindow {
             self?.showPaperToast(message)
             result(nil)
         }
+
+        super.awakeFromNib()
     }
 
     // MARK: - 纸片风 Toast

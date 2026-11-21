@@ -97,9 +97,19 @@ class WebViewHostState extends State<WebViewHost> {
 
   void _setup() {
     final cfg = widget.config.webview;
+    _controller.setJavaScriptMode(JavaScriptMode.unrestricted);
+    // ⚠️ macOS 的 `webview_flutter_wkwebview` 还没实现 `setOpaque` ——
+    //    `setBackgroundColor` 在 macOS 上直接抛 `UnimplementedError`，
+    //    会把整棵子树（连带导航委托）一起炸掉，WebView 永远是空白。
+    //    iOS / Android 都支持，所以按平台守卫（再兜一层 try/catch 防其它平台变卦）。
+    if (defaultTargetPlatform != TargetPlatform.macOS) {
+      try {
+        _controller.setBackgroundColor(_paperColor());
+      } catch (_) {
+        // 忽略：背景色只是锦上添花
+      }
+    }
     _controller
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(_paperColor())
       ..addJavaScriptChannel(
         KmBridge.channelName,
         onMessageReceived: (JavaScriptMessage message) {
@@ -135,7 +145,8 @@ class WebViewHostState extends State<WebViewHost> {
           },
           onUrlChange: (UrlChange change) {
             debugPrint('[WebView] onUrlChange: ${change.url}');
-            if (change.url != null) _injectBridge();
+            // ⚠️ 不在这里探测 SW —— 此刻页面还没加载完（见 _injectBridge 的说明）
+            if (change.url != null) _injectBridge(probe: false);
           },
           onWebResourceError: (WebResourceError error) async {
             if (!mounted || error.isForMainFrame != true) return;
@@ -227,7 +238,12 @@ class WebViewHostState extends State<WebViewHost> {
   }
 
   /// 注入 `window.KM` 壳对象 + 各类页面内监听。
-  Future<void> _injectBridge() async {
+  ///
+  /// [probe] 是否顺便探测 Service Worker —— **只有页面加载完之后才该探测**：
+  /// `onUrlChange` 时 WebView 里还是 `about:blank`，那种页面根本没有
+  /// `navigator.serviceWorker` → 会误判成「平台不支持」。
+  /// （macOS 上实测踩到：先报 unsupported，加载完再报 ready。）
+  Future<void> _injectBridge({bool probe = true}) async {
     final bridge = widget.config.bridge;
     final chrome = widget.config.webview.chrome;
     debugPrint('[WebView] _injectBridge 开始');
@@ -258,7 +274,7 @@ class WebViewHostState extends State<WebViewHost> {
       // 离线层：注册站内 Service Worker（origin 不变 → localStorage 依旧共享）
       await _js(KmBridge.serviceWorkerScript, 'SW 注册');
       // 注册结果从页面里直读（不靠 channel —— 那条路在 iOS 上可能不通）
-      await _probeServiceWorker();
+      if (probe) await _probeServiceWorker();
       if (bridge.enabled) {
         await _js(KmBridge.readyScript(widget.config.about.version), 'ready 事件');
       }
