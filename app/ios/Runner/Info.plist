@@ -66,9 +66,28 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-	<key>WKAppBoundDomains</key>
-	<array>
-		<string>kmlab.tech</string>
-	</array>
+	<!--
+	  ⚠️ 这里**故意不加** WKAppBoundDomains。
+
+	  一旦在 Info.plist 里声明了 WKAppBoundDomains，Apple 的 App-Bound Domains
+	  规则就会生效：所有 WKWebView 默认拒绝「JS 注入 / 自定义样式 / Cookie 操作 /
+	  message handler」—— 只有**被 Apple 验证过**的 app-bound 域名才放行。
+
+	  kmlab.tech 没有走 Associated Domains + apple-app-site-association 的
+	  验证流程（需要付费 Apple Developer 账号与真机签名），所以
+	  WebKit 会报：
+	    "Unable to execute JavaScript in a frame that is not in an app-bound domain"
+	  （WKError.Code 14 / javaScriptAppBoundDomain）
+
+	  后果是**整个 JS Bridge 全废**：window.KM 注不进去、localStorage 快照
+	  读不回来（续接卡永远「还没开始」）、下拉刷新 / 下载拦截 / SW 探测全失效。
+
+	  ⇒ 现在选择「Bridge 能用」而不是「离线能用」。
+	  等有了 Apple 账号、完成域名验证后，再把下面这段加回来：
+	    <key>WKAppBoundDomains</key>
+	    <array><string>kmlab.tech</string></array>
+	  并补上 Associated Domains 权限（applinks:kmlab.tech）+
+	  站点根目录的 /.well-known/apple-app-site-association。
+	-->
 </dict>
 </plist>

@@ -161,7 +161,9 @@ app/test/
 7. **数据导出 = `.json` 文件 + 系统分享面板**。不走剪贴板（几十 KB 不稳且会被别的 App 读）—— 发微信/飞书/邮件、存「文件」再上云盘一条路走通；换机时反手导入即可恢复。「清除数据」放在 ⋯ 里，但必须二次确认 + 提示先导出。
 8. **配置三来源、双轨加载**。内置快照首屏直出 → 运行时后台静默拉远端 → 失败沿用上次可用配置。断网、服务器挂了，App 都照常能用。
 9. **远端优先，保持同源**。H5 仍从 `https://kmlab.tech/...` 加载，**origin 与网页版一致 → 用户在网页版攒的数据直接可见**（换 origin = 换存储空间 = 丢数据，这是最大的坑）。
-10. **离线走 Service Worker，不换 origin**。站内 `/sw.js` 只接管 `/h5_tools/**`（cache-first + 后台刷新）—— 断网能秒开，**origin 不变 → 本地数据依旧共享**。把副本塞进 APK 换 origin 那条路被否决（数据会分家）。**已实测：断网后工具 H5 完整渲染，origin 与本地数据均未变。**
+10. **离线走 Service Worker，不换 origin**。站内 `/sw.js` 只接管 `/h5_tools/**`（cache-first + 后台刷新）—— 断网能秒开，**origin 不变 → 本地数据依旧共享**。把副本塞进 APK 换 origin 那条路被否决（数据会分家）。**已实测（Android）：断网后工具 H5 完整渲染，origin 与本地数据均未变。**
+    - ⚠️ **iOS / macOS 暂时没有离线**：WKWebView 只在「已验证的 app-bound domain」里才暴露 `navigator.serviceWorker`，而域名验证需要付费 Apple 开发者账号 + Associated Domains + 站点 AASA。本机没有账号 ⇒ iOS 上 `navigator.serviceWorker` 是 `undefined`。
+    - ⚠️ **千万别为了修离线去加 `WKAppBoundDomains`**：Apple 的规则是「一旦声明，所有 WKWebView 进入严格模式，拒绝一切 JS 注入 / message handler」—— 域名没验证的话，Bridge、localStorage 快照、下拉刷新会**全废**，离线还照样用不了。详见 [DESIGN.md §5.9](docs/DESIGN.md)。
 11. **JS Bridge 只做增强，不做依赖**。每个 H5 在普通浏览器里必须原样可用；Bridge 挂了 H5 还能用。
 12. **H5 零改造**。不重写任何业务逻辑，App 只负责「打开、承载、返回、离线、兜底」。
 
@@ -176,7 +178,7 @@ app/test/
 
 ## 文档
 
-- [设计文档 docs/DESIGN.md](docs/DESIGN.md) —— 架构、字段全表、品牌对齐表、校验规则、状态设计、13 条设计决策、迭代路线（M1~M5 全部排期 + 5 项跨仓库配合任务）、15 条拍板结果、11 条开发风险、**26 个实跑真 BUG**、iOS / macOS 适配要点（§5.9）、端上 UI 冒烟测试通道（§5.10）、App 级数据管理（§5.11）、拦截层（下载 / 外链，§5.12）、远端配置签名（§4.4.2）、配置 diff 提示（§4.4.3）、灰度发布（§5.13）、分享长图（§5.14）
+- [设计文档 docs/DESIGN.md](docs/DESIGN.md) —— 架构、字段全表、品牌对齐表、校验规则、状态设计、13 条设计决策、迭代路线（M1~M5 全部排期 + 5 项跨仓库配合任务）、15 条拍板结果、12 条开发风险、**28 个实跑真 BUG**、iOS / macOS 适配要点（§5.9）、端上 UI 冒烟测试通道（§5.10）、App 级数据管理（§5.11）、拦截层（下载 / 外链，§5.12）、远端配置签名（§4.4.2）、配置 diff 提示（§4.4.3）、灰度发布（§5.13）、分享长图（§5.14）
 - [存储 key 清单 docs/STORAGE_KEYS.md](docs/STORAGE_KEYS.md) —— 8 个工具的真实 localStorage / IndexedDB key + 续接卡摘要算法
 - [**iOS 上架手册 docs/TESTFLIGHT.md**](docs/TESTFLIGHT.md) —— 逐步骤操作手册（点哪里 / 看到什么 / 错了怎么办）：路线 A 免费自用 + 路线 B 上架 TestFlight + 常见错误速查
 - [设计示意图 prototype/index.html](prototype/index.html) —— 可交互原型
@@ -200,9 +202,9 @@ app/test/
 | 下拉刷新（`open.pullToRefresh`） | ✅ 已实现（页面内 JS 监听 + 牛皮纸指示器，真机验证 reload 生效） |
 | 离线 L1：Service Worker | ✅ 已部署并实测：SW 激活 + 页面被接管 + 7 个工具入口全预缓存 + **断网秒开**（`svc wifi disable` 后 H5 完整渲染） |
 | 原生 Toast（不被 WebView 遮挡） | ✅ 已实现（`km/toast` MethodChannel） |
-| ~~M2 离线 L2 内置副本~~ | 🚫 **取消** —— L2 换 origin 会让 localStorage 与网页版分家（违反 D1 铁律）。iOS 侧改用 `WKAppBoundDomains` 开启 SW（`IPHONEOS_DEPLOYMENT_TARGET` 已是 15.0 ⇒ 所有能装的设备都支持） |
+| ~~M2 离线 L2 内置副本~~ | 🚫 **取消** —— L2 换 origin 会让 localStorage 与网页版分家（违反 D1 铁律） |
 | iOS 出包验证 | ✅ 已跑通（Xcode 16.2；`xcode-select` 指错是根因，见 `scripts/setup-ios.sh`） |
-| 端上 UI 冒烟测试 | ✅ **双端各 4 个用例全过**（Android `flutter test integration_test` 1:27 / iOS `flutter drive`）—— 最近页 / 小工具页 / WebView 加载远程 H5 / 返回键 |
+| 端上 UI 冒烟测试 | ✅ **双端各 6 个用例全过**（Android `flutter test integration_test` 2:00 / iOS `flutter drive` 1:28）—— 最近页 / 小工具页 / WebView 加载远程 H5 / 返回键 / 离线能力如实探测 / Bridge 注入 |
 | App 正式名 | ✅ 改为 `kmlab Toolbox`（纯英文；站点标题「kmlab · 工具」中英混排，桌面标签不适用） |
 | **App 级数据管理**（导出全部 / 导入 / 清除全部） | ✅ 已实现（`lib/data/data_transfer.dart`；导出 = `.json` → 系统分享面板；导入支持「合并 / 完全覆盖」；清除有二次确认 + 先导出出口） |
 | **macOS 平台** | ✅ 已接入并跑通（`flutter build macos --debug` 出包；渲染树验证 UI 正常；三个 entitlement 配齐；原生 Toast 浮层自绘） |
@@ -212,5 +214,6 @@ app/test/
 | **脑力慢养续接卡** | ✅ 新增 `lastGame` 算法（实测线上 bundle 的 `bf_progress` 真实结构）；游戏代码→中文名映射放在配置里，App 不硬编码 H5 的知识 |
 | **灰度发布** | ✅ 两份 URL + 设备稳定分桶（FNV-1a + murmur3 `fmix32` 终混合；同一设备永远同一个桶）；`remote.canaryUrl` + `remote.rolloutPercent`（0~100） |
 | **分享长图** | ✅ 纸片风海报（RepaintBoundary → PNG → 系统分享面板）；两个入口：工具 ⋯ 菜单「生成分享长图」+ 我的页「生成分享长图」；先弹预览再分享 |
-| **iOS 离线修复** | ✅ 补 `WKAppBoundDomains = [kmlab.tech]`（iOS 14+ 的 SW 默认关闭，不配就静默失效 —— 之前 iOS 上离线一直没生效） |
+| **iOS / macOS 离线** | 🚧 **暂时做不到** —— WKWebView 只在「已验证的 app-bound domain」里暴露 SW API；域名验证要付费 Apple 账号 + Associated Domains + 站点 AASA。App 已如实显示「此平台不支持（iOS 限制）」，等账号条件齐了按 DESIGN.md §5.9 的四步开 |
+| **iOS JS Bridge 修复** | ✅ **删掉 `WKAppBoundDomains`** —— 声明它会让所有 WKWebView 进入严格模式（拒绝 JS 注入 / message handler），域名又没验证 ⇒ 整个 Bridge 全废。删掉后 iOS 上 `window.KM` / 快照 / 下拉刷新 / JS channel **全部恢复** |
 | **chrome 四档** | ✅ `minimal` / `auto` / `immersive` / `full` 全部实跑验证：`auto` 档滚动淡出 + 停手 1.5s 自动收起（`autoHideDelayMs`）；`immersive` 档真全屏 + 顶部热区边缘下滑唤出工具栏 + 默认不显示进度条（`keepProgressBarInImmersive`） |

@@ -114,7 +114,7 @@ fi
 cat << 'EOF'
 
 ════════════════════════════════════════
- 只能你手动做的 6 步
+ 只能你手动做的 7 步
 ════════════════════════════════════════
 
  1. 买 Apple Developer Program（$99/年）
@@ -127,14 +127,28 @@ cat << 'EOF'
       注册 Bundle ID：tech.kmlab.kmlabToolbox
       （iOS 与 macOS 是两条独立记录，各注册各的）
 
- 4. App Store Connect → My Apps → + → New App
+ 4. 【可选，但 iOS 离线必须】开启 App-Bound Domains
+      a. Xcode → Runner → Signing & Capabilities → + Capability
+         → Associated Domains → 填 applinks:kmlab.tech
+      b. 站点根目录放 /.well-known/apple-app-site-association，
+         内容里写上本 App 的 appID（<TeamID>.tech.kmlab.kmlabToolbox）
+      c. app/ios/Runner/Info.plist 里把 WKAppBoundDomains 的注释去掉、
+         正式加上 kmlab.tech
+      d. **必须真机验证**（模拟器不走域名验证）
+      ⚠️ 不做这一步也能上架 —— 只是 iOS 上没有离线（Service Worker 用不了），
+         App 会如实显示「此平台不支持（iOS 限制）」。
+         ⚠️ 反过来：只加 WKAppBoundDomains 而不做 a~d，会让 iOS 上
+         **整个 JS Bridge 全废**（Bridge / localStorage 快照 / 下拉刷新）——
+         详见 docs/DESIGN.md §5.9
+
+ 5. App Store Connect → My Apps → + → New App
       ⚠️ 一次只能选一个平台 —— iOS 和 macOS 要各建一条 App 记录
       填好名称、SKU、Primary Language
 
- 5. Xcode → Product → Archive
+ 6. Xcode → Product → Archive
       （不要用 flutter build ipa —— 上传必须走 Xcode 的 Archive 流程）
 
- 6. Xcode → Organizer → Distribute App → App Store Connect → Upload
+ 7. Xcode → Organizer → Distribute App → App Store Connect → Upload
       上传完等 10~30 分钟，TestFlight 里就能看到
 
  附：macOS 版本同理，但要走「Mac Catalyst」之外的原生 macOS 目标，

@@ -25,6 +25,7 @@ class WebViewHost extends StatefulWidget {
     required this.onScrollDirection,
     this.onExternalLink,
     this.onDownloadRequested,
+    this.onServiceWorkerState,
     this.controller,
     this.chrome,
   });
@@ -49,6 +50,15 @@ class WebViewHost extends StatefulWidget {
 
   /// 页面点了「下载」时回调（参数是下载地址）。
   final ValueChanged<String>? onDownloadRequested;
+
+  /// Service Worker 状态回调。
+  ///
+  /// 传 `'ready'` / `'unsupported'` / `'error:<原因>'` / `'unknown'`。
+  ///
+  /// ⚠️ 这里**不依赖 JS channel 通知** —— 那个通道在某些平台上可能不通，
+  /// 而离线状态是「这个工具能不能断网打开」的关键信息，必须从权威来源
+  /// （页面里的 `window.__kmSwState`）直读。
+  final ValueChanged<String>? onServiceWorkerState;
 
   /// 外部可注入控制器（测试用）。
   final WebViewController? controller;
@@ -109,6 +119,7 @@ class WebViewHostState extends State<WebViewHost> {
             setState(() => _progress = progress);
           },
           onPageStarted: (String url) {
+            debugPrint('[WebView] onPageStarted: $url');
             if (!mounted) return;
             setState(() {
               _failed = false;
@@ -116,12 +127,14 @@ class WebViewHostState extends State<WebViewHost> {
             });
           },
           onPageFinished: (String url) async {
+            debugPrint('[WebView] onPageFinished: $url');
             if (!mounted) return;
             setState(() => _ready = true);
             await _injectBridge();
             await _takeSnapshot();
           },
           onUrlChange: (UrlChange change) {
+            debugPrint('[WebView] onUrlChange: ${change.url}');
             if (change.url != null) _injectBridge();
           },
           onWebResourceError: (WebResourceError error) async {
@@ -217,38 +230,128 @@ class WebViewHostState extends State<WebViewHost> {
   Future<void> _injectBridge() async {
     final bridge = widget.config.bridge;
     final chrome = widget.config.webview.chrome;
+    debugPrint('[WebView] _injectBridge 开始');
     try {
       if (bridge.enabled) {
-        await _controller.runJavaScript(KmBridge.injectionScript(
+        await _js(KmBridge.injectionScript(
           permissions: bridge.permissions,
           version: widget.config.about.version,
           theme: widget.config.app.theme,
-        ));
+        ), 'bridge 壳');
       }
       // 「自动隐藏顶栏」档：必须由页面内上报滚动方向，顶栏才能随滚动淡出。
       // ⚠️ 判断必须用**当前工具**的档位（`tool.open.chrome`），
       // 不能用全局默认 `webview.chrome.default`（恒为 minimal）——
       // 那样 auto 档永远拿不到滚动脚本，顶栏就永远不会淡出（BUG #22）。
       if (widget.tool.open.isAutoChrome) {
-        await _controller.runJavaScript(KmBridge.scrollScript);
+        await _js(KmBridge.scrollScript, 'scroll 监听');
       }
-      await _controller.runJavaScript(KmBridge.edgeSwipeScript(
+      await _js(KmBridge.edgeSwipeScript(
         chrome.immersiveTopHotZonePx,
-      ));
+      ), '边缘下滑');
       if (widget.tool.open.pullToRefresh) {
-        await _controller.runJavaScript(KmBridge.pullToRefreshScript());
+        await _js(KmBridge.pullToRefreshScript(), '下拉刷新');
       }
       if (widget.config.webview.interceptDownloads) {
-        await _controller.runJavaScript(KmBridge.downloadInterceptScript);
+        await _js(KmBridge.downloadInterceptScript, '下载拦截');
       }
       // 离线层：注册站内 Service Worker（origin 不变 → localStorage 依旧共享）
-      await _controller.runJavaScript(KmBridge.serviceWorkerScript);
+      await _js(KmBridge.serviceWorkerScript, 'SW 注册');
+      // 注册结果从页面里直读（不靠 channel —— 那条路在 iOS 上可能不通）
+      await _probeServiceWorker();
       if (bridge.enabled) {
-        await _controller.runJavaScript(KmBridge.readyScript(widget.config.about.version));
+        await _js(KmBridge.readyScript(widget.config.about.version), 'ready 事件');
       }
-    } catch (_) {
-      // 注入失败不影响 H5 本身（Bridge 是增强项）
+      debugPrint('[WebView] _injectBridge 完成');
+    } catch (e) {
+      // 注入失败不影响 H5 本身（Bridge 是增强项）—— 但必须留下痕迹，
+      // 否则「脚本没注入成功」和「注入了但没生效」看起来一模一样（诊断黑洞）。
+      debugPrint('[WebView] _injectBridge 抛异常：$e');
     }
+  }
+
+  /// 跑一段 JS，带超时与日志。
+  ///
+  /// ⚠️ 每一段都独立 try/catch —— 一段失败不该连累后面的注入步骤。
+  Future<void> _js(String script, String label) async {
+    try {
+      await _controller
+          .runJavaScript(script)
+          .timeout(const Duration(seconds: 6));
+      debugPrint('[WebView] JS↓ $label ok');
+    } catch (e) {
+      debugPrint('[WebView] JS↓ $label 失败：$e');
+    }
+  }
+
+  /// 探测 Service Worker 注册状态。
+  ///
+  /// 做法：让页面把注册结果写进 `window.__kmSwState`（纯字符串），
+  /// Dart 侧用 `runJavaScriptReturningResult` **同步**读这个字符串。
+  ///
+  /// 为什么不用 Promise：`runJavaScriptReturningResult` 在 Android 上不 await
+  /// Promise（`evaluateJavascript` 语义），只有 iOS 的 `evaluateJavaScript` 会。
+  /// 换成「写变量 + 读变量」就两端一致了。
+  ///
+  /// 顺带探测 JS channel 是否可用（`window.KmHost`）——
+  /// 它是整个 Bridge 的命脉，不通的话所有 `KM.xxx` 能力都是哑的。
+  Future<void> _probeServiceWorker() async {
+    try {
+      debugPrint('[WebView] SW 探测开始');
+      await _controller
+          .runJavaScript(KmBridge.swProbeScript)
+          .timeout(const Duration(seconds: 6));
+      debugPrint('[WebView] SW 探测脚本已下发');
+      var state = '';
+      for (var i = 0; i < 20; i++) {
+        final raw = await _controller
+            .runJavaScriptReturningResult(KmBridge.swStateScript)
+            .timeout(const Duration(seconds: 6));
+        state = decodeJsValue(raw);
+        debugPrint('[WebView] SW 状态[$i]=$state');
+        if (state.startsWith('ready') ||
+            state.startsWith('error') ||
+            state == 'unsupported') {
+          break;
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 400));
+      }
+      final channel = decodeJsValue(await _controller
+          .runJavaScriptReturningResult('typeof window.KmHost')
+          .timeout(const Duration(seconds: 6)));
+      final support = decodeJsValue(await _controller
+          .runJavaScriptReturningResult(KmBridge.swSupportScript)
+          .timeout(const Duration(seconds: 6)));
+      debugPrint('[WebView] SW 状态=$state · JS channel=$channel · SW API=$support');
+      widget.onServiceWorkerState?.call(state);
+    } catch (e) {
+      debugPrint('[WebView] SW 探测失败：$e');
+      widget.onServiceWorkerState?.call('unknown');
+    }
+  }
+
+  /// 解 JS 的返回值。
+  ///
+  /// ⚠️ **Android 的 `runJavaScriptReturningResult` 会把字符串结果再 JSON 编码一层**
+  ///    （`evaluateJavascript` 语义），所以拿到的可能是 `"\"ready:...\""`。
+  ///    不多解一层，`state.startsWith('ready')` 永远为 false。
+  ///    iOS 的 `evaluateJavaScript` 不多包，所以这里做成「有引号就解一层」的通用逻辑。
+  static String decodeJsValue(Object? raw) {
+    var v = raw;
+    for (var i = 0; i < 3; i++) {
+      if (v is! String) break;
+      final t = v.trim();
+      if (t.length >= 2 && t.startsWith('"') && t.endsWith('"')) {
+        try {
+          v = jsonDecode(t);
+          continue;
+        } catch (_) {
+          break;
+        }
+      }
+      break;
+    }
+    return v is String ? v : '$v';
   }
 
   /// 取回 localStorage 快照 —— Dart 侧读不到 WebView 沙箱，只能通过 JS 取。

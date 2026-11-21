@@ -74,6 +74,13 @@ class _ToolDetailPageState extends State<ToolDetailPage>
   /// 站内 Service Worker 是否已注册成功（= 这个工具已经能离线打开）
   bool _offlineReady = false;
 
+  /// 这个平台压根没有 Service Worker API（iOS 未验证 app-bound 域名时）。
+  ///
+  /// ⚠️ 与「注册失败」是两回事：iOS 的 WKWebView 只在 app-bound domain 里
+  ///    才暴露 `navigator.serviceWorker`，没验证过就是 undefined，
+  ///    离线能力**根本用不了**，重试多少次都没用。
+  bool _offlineUnsupported = false;
+
   // ⚠️ 不要在这里存 WebViewController —— 控制器归 WebViewHost 所有，
   //    这里存一份只会拿到 null（曾经导致「刷新 / 导入 / 清除」全部静默失效）。
   //    要操作 WebView 一律走 _hostKey.currentState。
@@ -187,6 +194,19 @@ class _ToolDetailPageState extends State<ToolDetailPage>
     _hostKey.currentState?.reload();
   }
 
+  /// Service Worker 状态（从页面直读，不依赖 JS channel）。
+  void _onServiceWorkerState(String state) {
+    final ready = state.startsWith('ready');
+    final unsupported = state == 'unsupported';
+    debugPrint('[SW] 状态=$state');
+    if (mounted && (ready != _offlineReady || unsupported != _offlineUnsupported)) {
+      setState(() {
+        _offlineReady = ready;
+        _offlineUnsupported = unsupported;
+      });
+    }
+  }
+
   void _onBridgeMessage(KmHostMessage msg) {
     switch (msg.action) {
       case 'setTitle':
@@ -211,8 +231,12 @@ class _ToolDetailPageState extends State<ToolDetailPage>
           setState(() => _offlineReady = true);
         }
       case 'swUnavailable':
-        // 注册失败 —— iOS 14+ 需要 Info.plist 里配 WKAppBoundDomains
+        // 注册失败 —— 常见于 iOS：WKWebView 只在「已验证的 app-bound domain」
+        // 里才暴露 Service Worker API，没验证过就是 undefined。
         debugPrint('[SW] 注册失败：${msg.payload['reason']}');
+        if (mounted) {
+          setState(() => _offlineUnsupported = true);
+        }
       case 'toast':
         final m = msg.message;
         if (m.isNotEmpty) {
@@ -673,6 +697,7 @@ class _ToolDetailPageState extends State<ToolDetailPage>
         tool: widget.tool,
         config: widget.config,
         offlineReady: _offlineReady,
+        offlineUnsupported: _offlineUnsupported,
       ),
     );
   }
@@ -745,6 +770,7 @@ class _ToolDetailPageState extends State<ToolDetailPage>
                         },
                         onSnapshot: _onSnapshot,
                         onBridgeMessage: _onBridgeMessage,
+                        onServiceWorkerState: _onServiceWorkerState,
                         onScrollDirection: _onScrollDirection,
                         onExternalLink: _handleExternalLink,
                         onDownloadRequested: _startDownload,
@@ -1205,6 +1231,7 @@ class _AboutSheet extends StatelessWidget {
     required this.tool,
     required this.config,
     this.offlineReady = false,
+    this.offlineUnsupported = false,
   });
 
   final ToolConfig tool;
@@ -1212,6 +1239,9 @@ class _AboutSheet extends StatelessWidget {
 
   /// 站内 Service Worker 是否已就绪（= 断网也能打开）
   final bool offlineReady;
+
+  /// 本平台没有 Service Worker API（iOS 限制）。
+  final bool offlineUnsupported;
 
   @override
   Widget build(BuildContext context) {
@@ -1282,7 +1312,9 @@ class _AboutSheet extends StatelessWidget {
             row('加载方式', '远端优先（与网页版同源）'),
             row('离线副本',
                 tool.offline.enabled ? (tool.offline.size ?? '已缓存') : '无'),
-            row('断网可用', offlineReady ? '已缓存到本机' : '首次访问后自动缓存'),
+            row('断网可用', offlineReady
+                ? '已缓存到本机'
+                : (offlineUnsupported ? '此平台不支持（iOS 限制）' : '首次访问后自动缓存')),
             row('数据存储', '本机 · 与网页版共享'),
             row('来源', tool.url),
             const SizedBox(height: 10),

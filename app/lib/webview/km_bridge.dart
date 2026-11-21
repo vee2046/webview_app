@@ -274,19 +274,70 @@ class KmBridge {
   try {
     if (!('serviceWorker' in navigator)) {
       // iOS ≤13 根本不支持；iOS 14+ 还要 Info.plist 里配了 WKAppBoundDomains
+      window.__kmSwState = 'unsupported';
       say('swUnavailable', { reason: 'navigator.serviceWorker 不存在' });
       return;
     }
+    window.__kmSwState = 'registering';
     navigator.serviceWorker.register('/sw.js', { scope: '/' }).then(function (reg) {
+      window.__kmSwState = 'ready:' + reg.scope;
       say('swReady', { scope: reg.scope });
     }).catch(function (err) {
+      window.__kmSwState = 'error:' + String(err && err.message || err);
       say('swUnavailable', { reason: String(err && err.message || err) });
     });
   } catch (e) {
+    window.__kmSwState = 'error:' + String(e);
     say('swUnavailable', { reason: String(e) });
   }
 })();
 ''';
+
+  /// 确保 Service Worker 注册，并把结果写进 `window.__kmSwState`。
+  ///
+  /// 与 [serviceWorkerScript] 的区别：这个脚本**幂等且总是执行**，
+  /// 用来在 Dart 侧「再确认一次」注册状态。
+  ///
+  /// ⚠️ 状态写在页面里而不是通过 channel 通知 ——
+  ///    JS channel 在 iOS 上不一定通（实测 iOS 上收不到 `swReady`），
+  ///    而离线状态是「这个工具能不能断网打开」的关键信息，必须直读。
+  static const String swProbeScript = '''
+(function () {
+  try {
+    if (!('serviceWorker' in navigator)) {
+      window.__kmSwState = 'unsupported';
+      return;
+    }
+    if (window.__kmSwState && String(window.__kmSwState).indexOf('ready') === 0) {
+      return;
+    }
+    window.__kmSwState = 'registering';
+    navigator.serviceWorker.register('/sw.js', { scope: '/' }).then(function (reg) {
+      window.__kmSwState = 'ready:' + reg.scope;
+    }).catch(function (err) {
+      window.__kmSwState = 'error:' + String(err && err.message || err);
+    });
+  } catch (e) {
+    window.__kmSwState = 'error:' + String(e);
+  }
+})();
+''';
+
+  /// 读 `window.__kmSwState`（纯字符串 → 两端行为一致）。
+  static const String swStateScript = "window.__kmSwState || ''";
+
+  /// 探测这个平台到底有没有 Service Worker API。
+  ///
+  /// iOS 的关键差异：**WKWebView 只有在「app-bound domain」里才暴露
+  /// `navigator.serviceWorker`**（WebKit 的 App-Bound Domains 规则）。
+  /// 没验证过域名 → `navigator.serviceWorker` 整个是 undefined →
+  /// 离线（SW）在 iOS 上根本用不了，不是「注册失败」。
+  ///
+  /// 返回形如 `undefined|-` 或 `object|function`。
+  static const String swSupportScript =
+      "(typeof navigator.serviceWorker) + '|' + "
+      "((navigator.serviceWorker && navigator.serviceWorker.register) "
+      "? typeof navigator.serviceWorker.register : '-')";
 
   /// 拦截 `<a download="文件名">` 这种「明确是下载」的链接。
   ///
