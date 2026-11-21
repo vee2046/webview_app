@@ -93,11 +93,54 @@
 2. **Description**：`kmlab Toolbox`
 3. **Bundle ID**：选 **Explicit**，填 `tech.kmlab.kmlabToolbox`
 4. 一路 Continue → **Register**
-5. 勾选 Capability（可选，但建议开）
-   - **Associated Domains** —— 我们用不上（`WKAppBoundDomains` 是 Info.plist 键，不是这个）
+5. 勾选 Capability
+   - **Associated Domains** —— **想开 iOS 离线就必须勾**（见下面 B3.5）
    - 其它都先不管
 
 > 💡 如果你填的是 `com.你的名字.xxx`，后面 B4~B8 的 Bundle ID 都要改成一样的。
+
+### B3.5. 【可选】开 iOS 离线 —— App-Bound Domains（15 分钟）
+
+**先搞清楚为什么**（不然后面会走弯路）：
+
+Apple 的规则是 —— **只要在 `Info.plist` 里声明了 `WKAppBoundDomains`，所有 WKWebView 就进入严格模式**，
+拒绝一切 JS 注入 / message handler，**除非该域名被 Apple 验证过**。
+
+而 iOS 的离线（Service Worker）**只在「已验证的 app-bound domain」里才可用**。
+
+⇒ 也就是说：**不配 = Bridge 正常但没离线；配了但没验证 = Bridge 和离线一起废。**
+
+（我们踩过这个坑：曾经只加了 `WKAppBoundDomains` 没做验证，结果 iOS 上
+`window.KM` 注不进去、localStorage 快照读不回来（续接卡永远「还没开始」）、
+下拉刷新全失效，而离线照样用不了。详见 [DESIGN.md §5.9](DESIGN.md)。）
+
+**要开 iOS 离线的四步**：
+
+1. **Xcode** → 打开 `app/ios/Runner.xcworkspace` → 选中 **Runner** target
+   → **Signing & Capabilities** → **+ Capability** → **Associated Domains**
+   → 填 `applinks:kmlab.tech` → **Add Capability**
+2. **站点**根目录放 `/.well-known/apple-app-site-association`，内容形如：
+   ```json
+   { "applinks": { "details": [
+       { "appIDs": ["TEAMID.tech.kmlab.kmlabToolbox"], "components": [{ "/": "/*" }] }
+   ] } }
+   ```
+   （`TEAMID` 换成你账号的 Team ID，App ID 必须与第 3 步的 Bundle ID 完全一致）
+3. **重新生成签名**：Xcode 里勾上 Automatically manage signing，
+   然后在终端跑 `cd app && flutter build ios --simulator --debug` 验证能编译
+4. **改回 Info.plist**：`app/ios/Runner/Info.plist` 里有一段注释写着
+   「这里故意不加 WKAppBoundDomains」—— 把注释删掉、正式加上：
+   ```xml
+   <key>WKAppBoundDomains</key>
+   <array><string>kmlab.tech</string></array>
+   ```
+
+**验证**：必须用**真机**（模拟器不走域名验证）。打开任意工具 →
+⋯ → 关于这个工具 → 「断网可用」应显示 **「已缓存到本机」**；
+如果显示「此平台不支持（iOS 限制）」，说明域名验证没生效。
+
+> ⚠️ **顺序很重要**：第 1、2 步（权限 + 站点文件）没做完就改 Info.plist，
+> 会重现「Bridge 全废」的老坑。**先做完 1、2 步再动 3、4 步。**
 
 ## B4. 在 App Store Connect 创建 App 记录（10 分钟 + 审核等待）
 
