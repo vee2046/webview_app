@@ -15,6 +15,7 @@ import '../theme/paper_theme.dart';
 import '../util/native_toast.dart';
 import 'share_preview_dialog.dart';
 import 'widgets/share_card.dart';
+import 'widgets/app_logo.dart';
 import 'widgets/paper_widgets.dart';
 
 class SettingsPage extends StatefulWidget {
@@ -136,6 +137,7 @@ class _SettingsPageState extends State<SettingsPage> {
       hint: '长图里是 App 侧的使用统计（网页内容不会被截图）',
       cardBuilder: (w) => ShareReportCard(
         width: w,
+        logoPath: widget.config.app.icon,
         title: '我的使用报告',
         subtitle: '${DateTime.now().year} 年 ${DateTime.now().month} 月',
         iconName: 'box',
@@ -305,6 +307,13 @@ class _SettingsPageState extends State<SettingsPage> {
 
         // ── 关于 ──────────────────────────────────────────────
         SectionLabel('关于'),
+        _AboutHeader(
+          logoPath: app.icon,
+          appName: app.appName,
+          brandSub: app.brandSub,
+          version: widget.config.about.version,
+        ),
+        const SizedBox(height: 10),
         PaperSettingTile(
           icon: 'star',
           title: '${app.appName} · v${widget.config.about.version}',
@@ -396,6 +405,70 @@ class _Switch extends StatelessWidget {
 ///
 /// 配置里声明了「这一项是从 kmlab_site 的哪个文件抄来的」，
 /// 那就应该真的展示出来，而不是只躺在 JSON 里。
+
+/// 「关于」区顶部的品牌卡 —— App 自己的图标 + 名字 + 副标。
+class _AboutHeader extends StatelessWidget {
+  const _AboutHeader({
+    required this.logoPath,
+    required this.appName,
+    required this.brandSub,
+    required this.version,
+  });
+
+  final String logoPath;
+  final String appName;
+  final String brandSub;
+  final String version;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.paper;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+      decoration: BoxDecoration(
+        color: p.paperCard,
+        borderRadius: paperBorderRadius(16, alternate: 10),
+        border: Border.all(color: p.ink, width: p.lineWidth),
+        boxShadow: p.shadowPaper,
+      ),
+      child: Row(
+        children: [
+          AppLogo(path: logoPath, size: 44),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  appName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 16,
+                    height: 1.2,
+                    color: p.ink,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  brandSub,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 11.5, color: p.inkSoft),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          PaperBadge('v$version', color: p.crayonAmber),
+        ],
+      ),
+    );
+  }
+}
+
 class _BrandSourceTable extends StatelessWidget {
   const _BrandSourceTable({required this.entries});
 

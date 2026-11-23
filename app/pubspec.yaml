@@ -42,3 +42,5 @@ flutter:
   assets:
     # 内置配置快照（随包发布，运行时再尝试拉远端）
     - assets/app.config.json
+    # App 品牌图标（= kmlab_site/public/favicon.svg），路径由配置的 app.icon 指定
+    - assets/icon.svg

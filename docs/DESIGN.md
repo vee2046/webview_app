@@ -418,6 +418,22 @@ config/app.config.json
 
 ## §5 容器与页面
 
+
+#### App 里的品牌图标（`app.icon`）
+
+| 位置 | 展示 |
+|---|---|
+| 小工具页顶栏 | favicon 32px + 「kmlab」+「handmade workspace」 |
+| 我的 → 关于 | 品牌卡：favicon 44px + App 名 + 副标 + 版本角标 |
+| 分享长图底部 | favicon 22px + 「kmlab Toolbox · handmade workspace」+ kmlab.tech |
+
+路径全部取自配置的 `app.icon`（默认 `assets/icon.svg`）—— **配置即契约**，换图标只改配置、不改代码。
+
+⚠️ 三处必须同时到位，缺一不可：
+1. `assets/icon.svg`（仓库根）= 唯一真相源（= `kmlab_site/public/favicon.svg`）；
+2. `app/assets/icon.svg` = 上面那份的副本（由 `scripts/generate-icons.sh` 同步）—— **必须进 pubspec 的 assets**，否则 `SvgPicture.asset` 读不到；
+3. Android 桌面图标另有三条链路（传统 mipmap / 自适应 anydpi / 单色），见 BUG #28。
+
 ### 5.1 底部导航与首屏
 
 底部三项：**最近 | 小工具 | 我的**（「小工具」取自站点 `projects.navLabel`）。
@@ -1256,7 +1272,7 @@ Flutter 侧：小工具页列数 `app.home.columns`（默认 2，clamp 1~3）。
 | **M4 运营** | 🔄 | 远端配置链路 ✅ + 内容嗅探 ✅ + 新鲜度保护 ✅ + **签名校验 ✅（HMAC-SHA256，真做）** + **配置 diff 提示 ✅（热更可审）** + **灰度发布 ✅（两份 URL + 设备稳定分桶，见 §5.13）** + 三份副本同步脚本 ✅ + 远端自查脚本 ✅ | 工具上下架与推荐位 |
 | **M5 扩展** | 🔄 | 深色模式 ✅ + **macOS 平台接入 ✅（出包 + 跑通 + 沙箱 entitlement）** + **分享长图 ✅（纸片风海报，见 §5.14）** | **仅剩**：TestFlight 上传 —— ⏸ **暂缓**（不开通 Apple 账号，D15；步骤已写好在 `docs/TESTFLIGHT.md`，将来账号齐了直接照做）<br>~~多语言 / 桌面 Widget / 平板手表适配~~ —— 用户明确「只要兼容手机」 |
 
-#### 实跑中修掉的 28 个真 BUG
+#### 实跑中修掉的 29 个真 BUG
 
 | # | 现象 | 根因 | 修法 |
 |---|---|---|---|
@@ -1291,6 +1307,8 @@ Flutter 侧：小工具页列数 `app.home.columns`（默认 2，clamp 1~3）。
 > ⚠️ 其余 `paperBorderRadius` 调用点（Container / BoxDecoration / RoundedRectangleBorder）**都支持椭圆角**，不用改 —— 只有 `OutlineInputBorder` 是雷。
 
 | 28 | **Android 桌面图标一直是 Flutter 默认的蓝色 logo**（不是 kmlab 的 favicon） | `scripts/generate-icons.sh` 写好了但**从没在 Android 侧成功跑过** —— `res/` 里只剩 `flutter create` 生成的模板 PNG（`eb05e57` 初始提交带进来的），`mipmap-anydpi-v26/ic_launcher.xml` / `ic_launcher_foreground.png` / `ic_launcher_monochrome.png` / `values/colors.xml` **一个都没有**。而且 API 26+ 用的是自适应图标（`mipmap-anydpi-v26/ic_launcher.xml`），**只改 `mipmap-*/ic_launcher.png` 也没用** | 跑 `scripts/generate-icons.sh` 生成三层资源（传统 / 自适应前景 / Android 13 单色）+ `mipmap-anydpi-v26/ic_launcher.xml` + `values/colors.xml`；**单色层不能用 `icon.svg` 抠 alpha**（牛皮纸底不透明 → 抠出来是一整块黑方块），单独画 `assets/icon-monochrome.svg`（纯黑描边）；实机确认桌面已是「牛皮纸底 + 红 b + 蓝三线」 |
+
+| 29 | **App 里根本没有品牌图标** —— 小工具页顶栏只有「kmlab / handmade workspace」两行字；「我的 → 关于」写着「名称 / 图标 / 分类复用 kmlab_site」，但**一个图标都没显示** | 两个真缺口：① `assets/icon.svg` **压根没进 pubspec 的 assets** → Dart 侧根本拿不到这张图；② 配置里的 `app.icon`（`"assets/icon.svg"`）**从没被任何 UI 读过** —— 模型 `fromJson` 读了所以「配置即契约」守卫查不出来，但 UI 根本没用它（死字段） | `pubspec.yaml` 加 `assets/icon.svg`；新增 `ui/widgets/app_logo.dart`（`SvgPicture.asset` + 读不到时退回工具盒 doodle，不崩）；小工具页顶栏 / 我的页「关于」品牌卡 / 分享长图品牌行三处用起来，路径全部取自 `config.app.icon`；`generate-icons.sh` 增加「把 favicon 同步进 `app/assets/`」步骤（根 `assets/` 是唯一真相源）；`config_contract_test.dart` 加两个用例 —— **资产真实存在且已进 pubspec** + **在 UI 层有使用点**（防再退化成死字段） |
 
 ### 8.1 跨仓库配合任务（与 h5_tools / kmlab_site）
 

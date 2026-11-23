@@ -102,6 +102,38 @@ void main() {
     );
   });
 
+  test('app.icon 是真实存在的资源，且已进 pubspec', () {
+    final iconPath = config.app.icon; // 'assets/icon.svg'
+    expect(
+      File(iconPath).existsSync(),
+      isTrue,
+      reason: '配置里的 app.icon 指向的文件不存在：$iconPath',
+    );
+    final pubspec = File('pubspec.yaml').readAsStringSync();
+    expect(
+      pubspec.contains(iconPath),
+      isTrue,
+      reason: 'pubspec.yaml 的 assets 里没声明 $iconPath —— '
+          'App 里的品牌图标会读不到（SvgPicture.asset 报错）',
+    );
+  });
+
+  test('App 里的品牌图标真的被渲染了（app.icon 不是死字段）', () {
+    // app.icon 之前是「模型读了但没人用」的死字段 ——
+    // 现在它必须出现在 UI 代码里（不是只在 model 的 fromJson 里）。
+    final uiSource = [
+      'lib/ui/tools_page.dart',
+      'lib/ui/settings_page.dart',
+      'lib/ui/widgets/app_logo.dart',
+      'lib/ui/widgets/share_card.dart',
+    ].map((f) => File(f).readAsStringSync()).join('\n');
+    expect(
+      uiSource.contains('app.icon'),
+      isTrue,
+      reason: '配置里的 app.icon 在 UI 层没有任何使用点 —— 它就是个死字段',
+    );
+  });
+
   test('8 个假开关确实已删干净', () {
     const removed = [
       'javascriptEnabled',

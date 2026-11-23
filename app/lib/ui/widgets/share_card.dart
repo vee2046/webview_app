@@ -14,6 +14,7 @@ import 'package:flutter/material.dart';
 
 import '../../icons/doodle_icons.dart';
 import '../../theme/paper_theme.dart';
+import 'app_logo.dart';
 
 /// 长图里的一行：图标 + 标签 + 值。
 class ShareRow {
@@ -39,10 +40,14 @@ class ShareReportCard extends StatelessWidget {
     required this.iconName,
     required this.accent,
     required this.rows,
+    this.logoPath = 'assets/icon.svg',
     this.badge,
     this.footerNote,
     this.width = 340,
   });
+
+  /// 品牌图标路径（配置的 `app.icon`）。
+  final String logoPath;
 
   /// 大标题（工具名 / 「kmlab Toolbox」）
   final String title;
@@ -101,7 +106,7 @@ class ShareReportCard extends StatelessWidget {
             _Footer(note: footerNote!),
           ],
           const SizedBox(height: 16),
-          _BrandLine(),
+          _BrandLine(logoPath: logoPath),
         ],
       ),
     );
@@ -260,11 +265,18 @@ class _Footer extends StatelessWidget {
 }
 
 class _BrandLine extends StatelessWidget {
+  const _BrandLine({required this.logoPath});
+
+  /// 品牌图标路径（配置的 `app.icon`）。
+  final String logoPath;
+
   @override
   Widget build(BuildContext context) {
     final p = context.paper;
     return Row(
       children: [
+        AppLogo(path: logoPath, size: 22),
+        const SizedBox(width: 7),
         // 窄屏上「kmlab Toolbox · handmade workspace」会顶掉右边的 kmlab.tech
         // → 用 ellipsis 优雅截断，而不是溢出。
         Expanded(

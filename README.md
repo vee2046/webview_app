@@ -142,7 +142,8 @@ app/lib/
 │  ├─ resume_reader.dart     续接卡摘要算法（countToday / count / countDateMap / lastGame / field）
 │  ├─ data_transfer.dart     App 级导出全部 / 导入 / 清除全部（JSON + 分享面板）
 │  ├─ downloader.dart        下载抓取（http / blob / data:）+ 文件名消毒（保留中文）
-│  └─ view_prefs.dart        视图偏好（网格 ⇄ 列表）—— 最近页与小工具页共用
+│  ├─ view_prefs.dart        视图偏好（网格 ⇄ 列表）—— 最近页与小工具页共用
+│  └─ app_logo.dart
 ├─ util/
 │  └─ native_toast.dart      系统 Toast（WebView 是 PlatformView，会盖住 Flutter 的 SnackBar）
 ├─ webview/
@@ -155,7 +156,8 @@ app/lib/
    ├─ tool_detail_page.dart  工具容器 + ⋯ 溢出菜单 + 导入导出
    ├─ settings_page.dart     我的（外观 / 配置 / 离线与数据 / 关于）
    ├─ widgets/paper_widgets.dart  通用纸片组件
-   └─ widgets/view_toggle.dart    顶栏右侧的「网格 ⇄ 列表」切换按钮
+   ├─ widgets/view_toggle.dart    顶栏右侧的「网格 ⇄ 列表」切换按钮
+   └─ widgets/app_logo.dart       App 品牌图标（favicon，路径取自配置的 app.icon）
 app/integration_test/app_smoke_test.dart  真机 UI 冒烟（4 个用例）
 app/test_driver/integration_test.dart    flutter drive 入口
 app/test/
@@ -196,7 +198,7 @@ app/test/
 
 ## 文档
 
-- [设计文档 docs/DESIGN.md](docs/DESIGN.md) —— 架构、字段全表、品牌对齐表、校验规则、状态设计、15 条设计决策、迭代路线（M1~M5 全部排期 + 5 项跨仓库配合任务）、17 条拍板结果、13 条开发风险、**28 个实跑真 BUG**、iOS / macOS 适配要点（§5.9）、端上 UI 冒烟测试通道（§5.10）、App 级数据管理（§5.11）、拦截层（下载 / 外链，§5.12）、远端配置签名（§4.4.2）、配置 diff 提示（§4.4.3）、灰度发布（§5.13）、分享长图（§5.14）、视图偏好（网格 ⇄ 列表，§5.15）
+- [设计文档 docs/DESIGN.md](docs/DESIGN.md) —— 架构、字段全表、品牌对齐表、校验规则、状态设计、15 条设计决策、迭代路线（M1~M5 全部排期 + 5 项跨仓库配合任务）、17 条拍板结果、13 条开发风险、**29 个实跑真 BUG**、iOS / macOS 适配要点（§5.9）、端上 UI 冒烟测试通道（§5.10）、App 级数据管理（§5.11）、拦截层（下载 / 外链，§5.12）、远端配置签名（§4.4.2）、配置 diff 提示（§4.4.3）、灰度发布（§5.13）、分享长图（§5.14）、视图偏好（网格 ⇄ 列表，§5.15）
 - [存储 key 清单 docs/STORAGE_KEYS.md](docs/STORAGE_KEYS.md) —— 8 个工具的真实 localStorage / IndexedDB key + 续接卡摘要算法
 - [**iOS 上架手册 docs/TESTFLIGHT.md**](docs/TESTFLIGHT.md) —— 逐步骤操作手册（点哪里 / 看到什么 / 错了怎么办）：路线 A 免费自用 + 路线 B 上架 TestFlight + 常见错误速查
 - [设计示意图 prototype/index.html](prototype/index.html) —— 可交互原型
@@ -209,7 +211,7 @@ app/test/
 | **目标平台** | 🟡 **只做 Android**（iOS / macOS 代码保留但不发布，见 D15）；Android 一键出包：`./scripts/build-android.sh` |
 | P1 存储 key 清单 | ✅ 完成（`docs/STORAGE_KEYS.md`） |
 | M1 Flutter 骨架（模型 / 主题 / 图标 / 配置加载 / 数据层 / UI 层 / WebView 容器 / Bridge） | ✅ 代码完成，`flutter analyze` 0 issues |
-| 单元测试（摘要算法 / 快照往返 / 配置新鲜度 / App 级数据管理 / 下载解析 / chrome 档位 / lastGame / 视图偏好 / 配置契约 / HMAC 签名 / 配置差异 / 灰度分桶） | ✅ **146 个用例全过**（10 个测试文件） |
+| 单元测试（摘要算法 / 快照往返 / 配置新鲜度 / App 级数据管理 / 下载解析 / chrome 档位 / lastGame / 视图偏好 / 配置契约 / HMAC 签名 / 配置差异 / 灰度分桶） | ✅ **148 个用例全过**（10 个测试文件） |
 | 模拟器实跑验证 | ✅ 已跑通（最近页 / 小工具页 / 我的页 / WebView 同源加载 / minimal & immersive chrome / ⋯ 溢出菜单 / 导出分享面板 / 返回键回最近页 / 沉浸式边缘下滑唤出工具栏） |
 | 续接卡摘要 | ✅ 已修（`maybeDecode` 解字符串层 + `countDateMap` 算法） |
 | 配置新鲜度保护（`generatedAt`） | ✅ 已实现（远端旧配置不覆盖内置新配置） |
@@ -235,5 +237,6 @@ app/test/
 | **分享长图** | ✅ 纸片风海报（RepaintBoundary → PNG → 系统分享面板）；两个入口：工具 ⋯ 菜单「生成分享长图」+ 我的页「生成分享长图」；先弹预览再分享 |
 | **iOS 离线** | 🚧 **暂时做不到**（macOS 反而可以 ✅）—— 且已随 iOS 一起暂缓—— iOS 的 WKWebView 只在「已验证的 app-bound domain」里暴露 SW API；域名验证要付费 Apple 账号 + Associated Domains + 站点 AASA。App 已如实显示「此平台不支持（需域名验证）」，等账号条件齐了按 DESIGN.md §5.9 的四步开 |
 | **iOS JS Bridge 修复** | ✅ **删掉 `WKAppBoundDomains`** —— 声明它会让所有 WKWebView 进入严格模式（拒绝 JS 注入 / message handler），域名又没验证 ⇒ 整个 Bridge 全废。删掉后 iOS 上 `window.KM` / 快照 / 下拉刷新 / JS channel **全部恢复** |
+| **App 内品牌图标** | ✅ **已实现** —— 小工具页顶栏 / 我的页「关于」品牌卡 / 分享长图底部三处都显示 kmlab_site 的 favicon；路径取自配置的 `app.icon`（配置即契约）。⚠️ 修掉了一个「死字段」：之前 `app.icon` 模型读了但 UI 从没用过，而且 `assets/icon.svg` 压根没进 pubspec（App 里一个图标都没有） |
 | **视图偏好（网格 ⇄ 列表）** | ✅ **已实现并实跑验证** —— 最近页 + 小工具页顶栏右侧各只留一个图标，切换两页共用的显示格式（`ViewPrefs`；配置 `app.home.layout` 是默认值，用户手动选过则以用户为准并持久化）。原来顶栏的齿轮（跳「我的」）和小工具页的刷新按钮已移除（见 D16） |
 | **chrome 四档** | ✅ `minimal` / `auto` / `immersive` / `full` 全部实跑验证：`auto` 档滚动淡出 + 停手 1.5s 自动收起（`autoHideDelayMs`）；`immersive` 档真全屏 + 顶部热区边缘下滑唤出工具栏 + 默认不显示进度条（`keepProgressBarInImmersive`） |

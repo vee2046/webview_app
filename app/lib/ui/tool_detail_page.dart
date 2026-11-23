@@ -394,6 +394,7 @@ class _ToolDetailPageState extends State<ToolDetailPage>
       hint: '长图里是 App 侧的数据摘要（网页内容不会被截图）',
       cardBuilder: (w) => ShareReportCard(
         width: w,
+        logoPath: widget.config.app.icon,
         title: tool.title,
         subtitle: tool.subtitle,
         iconName: tool.icon,

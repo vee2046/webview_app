@@ -5,6 +5,7 @@ import '../data/view_prefs.dart';
 import '../icons/doodle_icons.dart';
 import '../model/app_config.dart';
 import '../theme/paper_theme.dart';
+import 'widgets/app_logo.dart';
 import 'widgets/paper_widgets.dart';
 import 'widgets/view_toggle.dart';
 
@@ -83,6 +84,7 @@ class _ToolsPageState extends State<ToolsPage> {
         _ToolsAppBar(
           title: app.name,
           subtitle: app.brandSub,
+          logoPath: app.icon,
           mode: widget.viewPrefs.mode,
           onToggleView: () => widget.viewPrefs.toggle(),
         ),
@@ -167,12 +169,16 @@ class _ToolsAppBar extends StatelessWidget {
   const _ToolsAppBar({
     required this.title,
     required this.subtitle,
+    required this.logoPath,
     required this.mode,
     required this.onToggleView,
   });
 
   final String title;
   final String subtitle;
+
+  /// 品牌图标路径（配置的 `app.icon`）。
+  final String logoPath;
   final ViewMode mode;
   final VoidCallback onToggleView;
 
@@ -182,6 +188,9 @@ class _ToolsAppBar extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 8, 12, 4),
       child: Row(
         children: [
+          // 品牌图标 —— 与桌面图标同一张 favicon（路径来自配置）
+          AppLogo(path: logoPath, size: 32),
+          const SizedBox(width: 9),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
