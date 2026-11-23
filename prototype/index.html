@@ -1614,6 +1614,19 @@ footer .wave{font-family:'Caveat',cursive;font-size:1.2rem;color:var(--crayon-am
 
     <div class="cols2">
       
+    <div class="panelbox amberbox">
+      <h3>🟡 D15 · 当前只做 Android，iOS / macOS 暂缓</h3>
+      <p style="font-size:.86rem;margin:0 0 8px">
+        暂不开通 Apple 开发者账号（$99/年），迭代范围收窄到 <b>Android</b>；iOS / macOS 的代码与工程<b>保留</b>（已跑通、已出包），但不签名分发、不上架、不投入。
+      </p>
+      <ul>
+        <li><b>账号是同一个卡点</b>：TestFlight 要付费账号；iOS 离线要的 app-bound 域名验证（Associated Domains + 站点 AASA + 真机签名）同样要付费账号。</li>
+        <li><b>Android 侧该有的能力全都有了</b>：Service Worker 离线（实测断网秒开）、原生 Toast、下载拦截、外链交接、分享面板、灰度、签名校验、配置 diff。</li>
+        <li><b>沉没成本几乎为零</b>：Dart 层三端共用，账号将来齐了，iOS/macOS 的代码仍在、坑也已记录（DESIGN §5.9 / BUG #27），随时捡起来。</li>
+        <li><b>代价明说</b>：没有 App Store / TestFlight 分发渠道，Android 侧靠 release APK 侧载；macOS 桌面版一并搁置。</li>
+      </ul>
+    </div>
+
     <div class="panelbox okbox">
       <h3>🟢 D14 · 名称 / 图标 / 分类 复用 kmlab_site</h3>
       <p style="font-size:.86rem;margin:0 0 8px">
@@ -1840,6 +1853,7 @@ footer .wave{font-family:'Caveat',cursive;font-size:1.2rem;color:var(--crayon-am
         <tr><td>13</td><td>脑力慢养保留一步后退？</td><td><span class="tag-ok">✅ 不开</span> —— 页内已有「回到首页」，8 个工具行为一致</td><td>—</td></tr>
         <tr><td>14</td><td>⋯ 菜单放「清除数据」？</td><td><span class="tag-ok">✅ 放</span> —— 二次确认 + 提示先导出 + 给「先导出备份」按钮</td><td>⋯ 菜单</td></tr>
         <tr><td>15</td><td>导出数据落地形式？</td><td><span class="tag-ok">✅ .json 文件 + 系统分享面板</span>，剪贴板仅兜底</td><td>导出/导入模块</td></tr>
+        <tr><td>16</td><td>iOS / macOS 要不要一起发？</td><td><span class="tag-warn">⏸ 暂缓，当前只做 Android</span> —— 暂不开通 Apple 开发者账号（$99/年）；iOS / macOS 代码保留但不发布、不投入</td><td>迭代范围（见 D15）</td></tr>
       </tbody>
     </table>
 
@@ -1861,7 +1875,8 @@ footer .wave{font-family:'Caveat',cursive;font-size:1.2rem;color:var(--crayon-am
         <tr><td>R9</td><td><code>html_files.json</code> 与 <code>app.config.json</code> 两份清单可能不同步</td><td><span class="tag-no">低</span></td><td><code>app.config.json</code> 是 App 的唯一真相源；站内清单只作参考，运营只改 <code>app.json</code></td></tr>
         <tr><td>R10</td><td>远端配置发布滞后，会把 App 打回旧行为</td><td><span class="tag-warn">中</span></td><td>配置带 <code>generatedAt</code> 时间戳；远端比本地旧（或缺这个字段）一律拒绝并沿用本地</td></tr>
         <tr><td>R11</td><td>WebView 是 PlatformView，Flutter 盖在上面的手势层收不到落在 WebView 区域的触摸</td><td><span class="tag-warn">中</span></td><td>需要页面内手势时由<b>页面 JS 监听后回传</b>，不靠 Flutter 的 <code>GestureDetector</code>；Flutter 覆盖层上的按钮仍可点</td></tr>
-        <tr><td>R12</td><td><b>iOS 上没有离线能力</b> —— iOS 的 WKWebView 只在「已验证的 app-bound domain」里才暴露 <code>navigator.serviceWorker</code>（<b>macOS 实测可用</b>，只有 iOS 不行）</td><td><span class="tag-warn">中</span></td><td>如实显示「此平台不支持（需域名验证）」而不是假装能离线；<b>千万别加 <code>WKAppBoundDomains</code></b> —— 声明它会让所有 WKWebView 进入严格模式、整个 JS Bridge 全废；拿到 Apple 账号后按 DESIGN.md §5.9 的四步开</td></tr>
+        <tr><td>R12</td><td><b>iOS 上没有离线能力</b> —— iOS 的 WKWebView 只在「已验证的 app-bound domain」里才暴露 <code>navigator.serviceWorker</code>（<b>macOS 实测可用</b>，只有 iOS 不行）</td><td><span class="tag-warn">低 · 已搁置</span></td><td>如实显示「此平台不支持（需域名验证）」而不是假装能离线；<b>千万别加 <code>WKAppBoundDomains</code></b> —— 声明它会让所有 WKWebView 进入严格模式、整个 JS Bridge 全废；拿到 Apple 账号后按 DESIGN.md §5.9 的四步开。<b>当前只做 Android（见 D15），此项已搁置</b></td></tr>
+        <tr><td>R13</td><td><b>Android 没有正式分发渠道</b> —— 没有 Google Play 开发者账号，release APK 只能靠侧载；且 release 目前仍用 debug key 签名</td><td><span class="tag-warn">中</span></td><td>侧载够用（<code>./scripts/build-android.sh --install</code> 一条命令出包并装机，覆盖安装保留数据）；要上 Play 需自建 keystore（<code>key.properties</code> 放本地、不入库）</td></tr>
       </tbody>
     </table>
   </section>

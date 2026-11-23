@@ -1,7 +1,8 @@
 # kmlab Toolbox · App 设计文档
 
-> **版本** v0.3 · 2026-11-19
+> **版本** v0.4 · 2026-11-23
 > **状态** 设计已定稿 · 无待拍板项 · 可直接排期开发
+> **目标平台** 🟡 **当前只做 Android** —— 暂不开通 Apple 开发者账号，iOS / macOS 的代码保留但**不发布、不投入**（见 D15）
 > **品牌一致性**：图标、分类、工具名、线稿全部复用 kmlab_site；App 正式名 `kmlab Toolbox`（唯一一处刻意不照抄，见 §4.5）
 
 ---
@@ -28,8 +29,9 @@
 - ❌ 后端服务 —— App 不连任何自建接口
 - ❌ 改写任何 H5 的业务逻辑
 - ❌ 工具内部的增删改查 UI —— 那是 H5 的事
+- ❌ **iOS / macOS 的发版与维护** —— 暂不开通 Apple 开发者账号（$99/年），代码与工程保留（已跑通、已出包），但**不做签名分发、不上架、不投入**（见 D15）
 
-### 1.4 现状快照（2026-11-19）
+### 1.4 现状快照（2026-11-23）
 
 | 项 | 状态 |
 |---|---|
@@ -37,7 +39,8 @@
 | 配置 Schema | ✅ 落地（`config/app.config.json` 602 行 / 8 工具） |
 | Flutter 工程 | ✅ 17 个 dart 文件，`flutter analyze` 0 issues，`flutter test` 26 passed |
 | Android 实跑 | ✅ 模拟器 emulator-5554 全功能验证通过 |
-| iOS 实跑 | ✅ 模拟器 D2D6D351（iPhone 16 / iOS 18.2）验证通过 |
+| iOS 实跑 | ✅ 模拟器 D2D6D351（iPhone 16 / iOS 18.2）验证通过 —— 但**已停止投入**（D15） |
+| **目标平台** | 🟡 **只做 Android**；iOS / macOS 代码保留、不发布 |
 | 端上 UI 冒烟测试 | ✅ `flutter drive` 4 用例，iOS + Android 双端可跑 |
 | 实跑中修掉的真 BUG | 27 个（见 §8.0） |
 
@@ -730,6 +733,10 @@ App 一旦接管 `goBack()`，就会和 H5 自己的路由形成**两套历史�
 
 ### 5.9 iOS / macOS 侧适配要点
 
+> ⏸ **本章暂缓** —— 暂不开通 Apple 开发者账号，iOS / macOS 不发布也不投入（D15）。
+> 本章保留是为了**将来账号条件齐了可以直接照着做**，以及**别再踩一遍已知的坑**（尤其 BUG #27：`WKAppBoundDomains` 会打死整个 JS Bridge）。
+> Android 侧不受影响 —— 本工程是 Flutter，Dart 层三端共用，Android 的功能与修复全部照常。
+
 #### 工具链（踩过的坑，按顺序）
 
 | # | 问题 | 现象 | 解法 |
@@ -1121,6 +1128,24 @@ full / auto / minimal / immersive / none。immersive 必须配顶部热区下滑
 
 名称 / 图标 / 分类 / 工具名 / 线稿全部照搬；**唯一例外**是 App 正式名 `kmlab Toolbox`（站点标题中英混排）。对齐表见 §4.5。
 
+### D15 🟡 当前只做 Android，iOS / macOS 暂缓
+
+**结论**：迭代范围收窄到 **Android**；iOS / macOS 的代码与工程**保留**（已跑通、已出包），但**不签名分发、不上架、不投入**。
+
+**理由**：
+1. **没有 Apple 开发者账号** —— TestFlight / App Store 都要求付费的 Apple Developer Program（$99/年）。账号侧条件不齐，iOS 的一切发布动作都推不动。
+2. **iOS 的离线能力本来就被账号卡住** —— WKWebView 只在「已验证的 app-bound domain」里暴露 `navigator.serviceWorker`，而域名验证（Associated Domains + 站点 AASA + 真机签名）同样需要付费账号（§5.9 / R12）。**账号是同一个卡点**。
+3. **Android 侧该有的能力都已经有了** —— Service Worker 离线（实测断网秒开）、原生 Toast、下载拦截、外链交接、分享面板、灰度、签名校验、配置 diff，全都在 Android 上实跑验证过。继续投入 Android 的边际收益远高于继续修 iOS。
+4. **Dart 层三端共用** —— 以后一旦账号齐了，iOS/macOS 的代码仍在、坑也已记录（§5.9），随时能捡起来，**沉没成本几乎为零**。
+
+**代价（明说）**：
+- 没有 App Store / TestFlight 分发渠道 —— Android 侧靠 **release APK 侧载**（`app-release.apk`）。
+- macOS 桌面版也一并搁置（它本来也不走 TestFlight，上架要走 Mac App Store）。
+
+**因此本仓库的约定**：
+- 出包 / 验证 / 冒烟测试的**主链路只有 Android**（`./scripts/build-android.sh`、`flutter test integration_test/... -d emulator-5554`）。
+- iOS / macOS 相关的脚本（`setup-ios.sh` / `setup-testflight.sh` / `run-ios-device.sh`）与文档（`docs/TESTFLIGHT.md`）**保留但标注暂缓** —— 不删，是为了将来能直接用。
+
 ---
 
 ## §7 视觉规范
@@ -1173,11 +1198,11 @@ Flutter 侧：小工具页列数 `app.home.columns`（默认 2，clamp 1~3）。
 
 | 里程碑 | 状态 | 已完成 | 待做 |
 |---|---|---|---|
-| **M1 骨架** | ✅ | Flutter 工程 + 配置加载器 + 最近页（首屏）+ 小工具页 + 我的页 + WebView 容器（minimal/full/auto）+ 返回键 + 品牌资产（图标/分类/工具名/doodle）+ **App 正式名 `kmlab Toolbox`** + 单元测试（**138 个用例**） | iOS / macOS 正式签名出包 |
+| **M1 骨架** | ✅ | Flutter 工程 + 配置加载器 + 最近页（首屏）+ 小工具页 + 我的页 + WebView 容器（minimal/full/auto）+ 返回键 + 品牌资产（图标/分类/工具名/doodle）+ **App 正式名 `kmlab Toolbox`** + 单元测试（**138 个用例**） | ⏸ iOS / macOS 正式签名出包 —— **暂缓**（D15，当前只做 Android） |
 | **M2 体验** | ✅ | chrome 四档 ✅（**minimal / auto / immersive / full 全部实跑验证**，含 immersive 顶部热区边缘下滑 + auto 档滚动淡出 + 停手 1.5s 自动收起） + 续接卡摘要 ✅ + ⋯ 溢出菜单（12 动作分组）✅ + 下拉刷新 ✅ + 加载进度 ✅ + 失败兜底页 ✅ + 导出分享面板 ✅ + **App 级数据管理（导出全部/导入/清除全部）✅** + 原生 Toast 通道 ✅ + 端上 UI 冒烟测试通道 ✅ + **离线 L1 Service Worker ✅（Android 已部署并实测断网秒开；macOS 实测 SW 也可用 ✅；**iOS 需「已验证的 app-bound domain」，无 Apple 账号时如实显示「此平台不支持」**，见 §5.9 与 BUG #27）** + **拦截层（下载 / 外链）✅** + **分享长图 ✅** | 长按抽屉 · 搜索 UI 打磨 |
 | **M3 生态** | 🔄 | `resume.mode: storage` 已跑通 ✅ + **脑力慢养续接卡 ✅（`lastGame` 算法，实测 `bf_progress`）** | Bridge 落地（title/toast/share/export/openTool 已写，待 H5 侧接入）· Bridge 上报通道（跨仓库，需 h5_tools 侧配合）· 常用置顶持久化 ✅（本地） |
 | **M4 运营** | 🔄 | 远端配置链路 ✅ + 内容嗅探 ✅ + 新鲜度保护 ✅ + **签名校验 ✅（HMAC-SHA256，真做）** + **配置 diff 提示 ✅（热更可审）** + **灰度发布 ✅（两份 URL + 设备稳定分桶，见 §5.13）** + 三份副本同步脚本 ✅ + 远端自查脚本 ✅ | 工具上下架与推荐位 |
-| **M5 扩展** | 🔄 | 深色模式 ✅ + **macOS 平台接入 ✅（出包 + 跑通 + 沙箱 entitlement）** + **分享长图 ✅（纸片风海报，见 §5.14）** | **仅剩**：TestFlight 上传（阻塞在 Apple 账号侧，步骤见 `docs/TESTFLIGHT.md`；拿到账号后按 §5.9 开 App-Bound Domains 才有 iOS 离线）<br>~~多语言 / 桌面 Widget / 平板手表适配~~ —— 用户明确「只要兼容手机」 |
+| **M5 扩展** | 🔄 | 深色模式 ✅ + **macOS 平台接入 ✅（出包 + 跑通 + 沙箱 entitlement）** + **分享长图 ✅（纸片风海报，见 §5.14）** | **仅剩**：TestFlight 上传 —— ⏸ **暂缓**（不开通 Apple 账号，D15；步骤已写好在 `docs/TESTFLIGHT.md`，将来账号齐了直接照做）<br>~~多语言 / 桌面 Widget / 平板手表适配~~ —— 用户明确「只要兼容手机」 |
 
 #### 实跑中修掉的 27 个真 BUG
 
@@ -1296,7 +1321,7 @@ app/
 
 ---
 
-## §9 拍板结果（15 条全部已定）
+## §9 拍板结果（16 条全部已定）
 
 > 无待拍板项 · 可直接排期开发
 
@@ -1317,6 +1342,7 @@ app/
 | 13 | 脑力慢养保留一步后退？ | ✅ **不开** —— 页内已有「回到首页」，8 个工具行为一致 | — |
 | 14 | ⋯ 菜单放「清除数据」？ | ✅ **放** —— 二次确认 + 提示先导出 + 给「先导出备份」按钮 | ⋯ 菜单 |
 | 15 | 导出数据落地形式？ | ✅ **`.json` 文件 + 系统分享面板**，剪贴板仅兜底 | 导出/导入模块 |
+| 16 | iOS / macOS 要不要一起发？ | ⏸ **暂缓，当前只做 Android** —— 暂不开通 Apple 开发者账号（$99/年）；iOS / macOS 代码保留但不发布、不投入（D15） | 迭代范围 |
 
 ---
 
@@ -1337,7 +1363,8 @@ app/
 | R9 | `html_files.json` 与 `app.config.json` 两份清单可能不同步 | 低 | `app.config.json` 是 App 的唯一真相源；站内清单只作参考 |
 | R10 | 远端配置发布滞后，会把 App 打回旧行为 | 中 | 配置带 `generatedAt`；远端比本地旧（或缺这个字段）一律拒绝并沿用本地（§4.4.1） |
 | R11 | WebView 是 PlatformView，Flutter 盖在上面的手势层收不到落在 WebView 区域的触摸 | 中 | 需要页面内手势时由页面 JS 监听后回传，不靠 Flutter 的 `GestureDetector`；Flutter 覆盖层上的按钮仍可点（§5.3 ②） |
-| R12 | **iOS 上没有离线能力** —— iOS 的 WKWebView 只在「已验证的 app-bound domain」里暴露 `navigator.serviceWorker`；没有 Apple 开发者账号就拿不到验证（**macOS 实测 SW 可用，不受影响**） | 中 | 如实显示「此平台不支持（需域名验证）」而不是假装能离线；Android / macOS 侧 SW 离线已实测可用；**拿到 Apple 账号后按 §5.9 的四步开 app-bound domain**（改 `Info.plist` + Associated Domains + 站点 AASA + 真机验证） |
+| R12 | **iOS 上没有离线能力** —— iOS 的 WKWebView 只在「已验证的 app-bound domain」里暴露 `navigator.serviceWorker`；没有 Apple 开发者账号就拿不到验证（**macOS 实测 SW 可用，不受影响**） | 低（**已搁置**，D15） | 如实显示「此平台不支持（需域名验证）」而不是假装能离线；Android 侧 SW 离线已实测可用；**拿到 Apple 账号后按 §5.9 的四步开 app-bound domain**（改 `Info.plist` + Associated Domains + 站点 AASA + 真机验证） |
+| R13 | **Android 侧没有正式分发渠道** —— 没有 Google Play 开发者账号，release APK 只能靠侧载（传文件 / 网盘 / 微信）；且当前 `build.gradle` 里 release 用的仍是 **debug key**（`signingConfigs.getByName("debug")`） | 中 | 侧载够用，`./scripts/build-android.sh --install` 一条命令出包并装机（覆盖安装保留数据）；要上 Play 需自建 keystore（`key.properties` 放本地、不入库）；版本号用 `pubspec.yaml` 的 `version: x.y.z+build` |
 
 ---
 
@@ -1356,13 +1383,15 @@ webview_app/
 │  ├─ icon.svg                     App 图标（= kmlab_site/public/favicon.svg）
 │  └─ icon-foreground.svg          自适应前景层（红 b + 蓝三线）
 ├─ scripts/
+│  ├─ build-android.sh             Android 一键出包（analyze + 单测 + APK + 可选装机）
 │  ├─ publish-config.sh            三份副本同步 + 自动盖 generatedAt + 生成 strings.xml
 │  ├─ verify-remote-config.sh      线上配置自查
 │  ├─ generate-icons.sh            ImageMagick 生成各平台图标
 │  ├─ sign-config.sh               配置签名（HMAC-SHA256，python 侧）
-│  ├─ setup-ios.sh                 iOS 工具链体检 + 修复引导
-│  ├─ setup-testflight.sh          TestFlight 发布链路体检 + 引导（含 macOS）
-│  └─ run-ios-device.sh            路线 A：免费签到自己的 iPhone 上跑（7 天有效）
+│  ├─ setup-ios.sh                 iOS 工具链体检 + 修复引导        ⏸ 暂缓
+│  ├─ setup-testflight.sh          TestFlight 发布链路体检 + 引导   ⏸ 暂缓
+│  └─ run-ios-device.sh            路线 A：免费签到自己的 iPhone    ⏸ 暂缓
+│                                    （iOS / macOS 暂缓发布，见 D15；脚本保留不删）
 └─ app/                            Flutter 工程 kmlab_toolbox（详见 §8.2）
 ```
 

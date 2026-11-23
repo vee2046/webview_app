@@ -3,6 +3,8 @@
 > 一个**配置驱动主界面 + WebView 承载业务**的极简 App 壳。
 > 接入 `kmlab_site` / `h5_tools` 里的 7 个 H5 小工具（+ 1 个外部入口），主界面完全由 JSON 配置渲染。
 > **App 不是新产品，而是 kmlab_site 的移动端形态** —— 图标、分类、工具名全部复用站内；正式名 `kmlab Toolbox`（纯英文，见下文核心思路第 2 条）。
+>
+> 🟡 **当前只做 Android 版本** —— 暂不开通 Apple 开发者账号（$99/年），iOS / macOS 的代码保留但**不发布、不投入**（决策见 [DESIGN.md D15](docs/DESIGN.md)）。Android 侧用 `./scripts/build-android.sh` 一条命令出包。
 
 ## 快速开始
 
@@ -32,13 +34,14 @@ flutter drive \
 # 5) 重新生成 App 图标（改了 assets/icon.svg 之后）
 ./scripts/generate-icons.sh          # Android mipmap + iOS AppIcon
 
-# 6) iOS 出包前先体检（一次搞定 Xcode / SDK / 模拟器）
-./scripts/setup-ios.sh               # 只体检并给出修复命令
-./scripts/setup-ios.sh --fix         # 体检 + 自动修（弹系统密码框）
+# 5b) Android 一键出包（静态检查 + 单测 + release APK）
+./scripts/build-android.sh            # 分析 + 单测 + 出 release APK
+./scripts/build-android.sh --debug    # 出 debug APK
+./scripts/build-android.sh --install  # 出包并装到已连接的设备
 
-# 7) 上架 TestFlight 前体检（证书 / Bundle ID / entitlement / 版本号）
-./scripts/setup-testflight.sh        # 只体检 + 列出你需要手动做的步骤
-./scripts/setup-testflight.sh --build  # 体检 + 打一个 macOS release 包（本机跑）
+# ⏸ 以下 iOS / TestFlight 相关脚本已暂缓（不开通 Apple 账号），留着将来直接用
+# ./scripts/setup-ios.sh --fix         # iOS 出包前体检（Xcode / SDK / 模拟器）
+# ./scripts/setup-testflight.sh        # TestFlight 前体检（证书 / Bundle ID / entitlement）
 ```
 
 ### 出包产物在哪
@@ -47,12 +50,12 @@ flutter drive \
 |---|---|---|
 | Android | `flutter build apk --release` | `app/build/app/outputs/flutter-apk/app-release.apk`（约 55MB，debug key 签名，可直接侧载） |
 | Android（调试） | `flutter build apk --debug` | `app/build/app/outputs/flutter-apk/app-debug.apk` |
-| iOS | `flutter build ios --release --no-codesign` | `app/build/ios/iphoneos/Runner.app`（**没有签名**，要上架得在 Xcode 里 Archive） |
-| macOS | `flutter build macos --release` | `app/build/macos/Build/Products/Release/kmlab Toolbox.app`（ad-hoc 签名，**只能本机跑**；上架要走 Mac App Store，不走 TestFlight） |
+| iOS ⏸ | `flutter build ios --release --no-codesign` | `app/build/ios/iphoneos/Runner.app`（**没有签名**）—— **暂缓发布**（D15） |
+| macOS ⏸ | `flutter build macos --release` | `app/build/macos/Build/Products/Release/kmlab Toolbox.app`（ad-hoc 签名，**只能本机跑**）—— **暂缓发布**（D15） |
 
-> iOS / macOS 的**正式签名包**必须由 Xcode 的 Archive 流程产出（脚本代劳不了），步骤见 [docs/TESTFLIGHT.md](docs/TESTFLIGHT.md)。
-
-> **TestFlight 需要的账号前提**（脚本代劳不了，会逐条列给你）：
+> ⏸ **iOS / macOS 已暂缓**（暂不开通 Apple 开发者账号，见 D15）。代码与出包能力都保留着，步骤见 [docs/TESTFLIGHT.md](docs/TESTFLIGHT.md)，将来账号齐了直接照做。
+>
+> **TestFlight 需要的账号前提**（将来才需要，脚本代劳不了，会逐条列给你）：
 > ① 付费的 Apple Developer Program 账号（$99/年，免费账号不能上架）
 > ② Xcode → Settings → Accounts 登录该账号 → 自动生成「Apple Distribution」证书
 > ③ developer.apple.com 注册 Bundle ID `tech.kmlab.kmlabToolbox`
@@ -116,6 +119,7 @@ scripts/
 ├─ publish-config.sh     把 config/app.config.json 同步到内置快照 + 远端 app.json（自动盖 generatedAt + 自动签名）
 ├─ sign-config.sh        给配置算 HMAC-SHA256 签名（--check 只校验 / --print 只打印）
 ├─ verify-remote-config.sh  验证远端配置是否真的上线（HTTP / content-type / md5 / generatedAt）
+├─ build-android.sh      Android 一键出包（analyze + 单测 + release APK + 可选装机）
 ├─ generate-icons.sh     从 assets/icon.svg 生成 Android mipmap + iOS AppIcon + macOS AppIcon
 ├─ setup-ios.sh          iOS 工具链体检 + 修复引导（xcode-select / SDK / 模拟器 / SPM）
 └─ setup-testflight.sh   TestFlight 发布链路体检 + 引导（证书 / Bundle ID / entitlement / 版本号）
@@ -189,7 +193,7 @@ app/test/
 
 ## 文档
 
-- [设计文档 docs/DESIGN.md](docs/DESIGN.md) —— 架构、字段全表、品牌对齐表、校验规则、状态设计、13 条设计决策、迭代路线（M1~M5 全部排期 + 5 项跨仓库配合任务）、15 条拍板结果、12 条开发风险、**27 个实跑真 BUG**、iOS / macOS 适配要点（§5.9）、端上 UI 冒烟测试通道（§5.10）、App 级数据管理（§5.11）、拦截层（下载 / 外链，§5.12）、远端配置签名（§4.4.2）、配置 diff 提示（§4.4.3）、灰度发布（§5.13）、分享长图（§5.14）
+- [设计文档 docs/DESIGN.md](docs/DESIGN.md) —— 架构、字段全表、品牌对齐表、校验规则、状态设计、14 条设计决策、迭代路线（M1~M5 全部排期 + 5 项跨仓库配合任务）、16 条拍板结果、13 条开发风险、**27 个实跑真 BUG**、iOS / macOS 适配要点（§5.9）、端上 UI 冒烟测试通道（§5.10）、App 级数据管理（§5.11）、拦截层（下载 / 外链，§5.12）、远端配置签名（§4.4.2）、配置 diff 提示（§4.4.3）、灰度发布（§5.13）、分享长图（§5.14）
 - [存储 key 清单 docs/STORAGE_KEYS.md](docs/STORAGE_KEYS.md) —— 8 个工具的真实 localStorage / IndexedDB key + 续接卡摘要算法
 - [**iOS 上架手册 docs/TESTFLIGHT.md**](docs/TESTFLIGHT.md) —— 逐步骤操作手册（点哪里 / 看到什么 / 错了怎么办）：路线 A 免费自用 + 路线 B 上架 TestFlight + 常见错误速查
 - [设计示意图 prototype/index.html](prototype/index.html) —— 可交互原型
@@ -199,6 +203,7 @@ app/test/
 | 阶段 | 状态 |
 |---|---|
 | 设计（示意图 / 文档 / 配置 Schema） | ✅ 定稿 |
+| **目标平台** | 🟡 **只做 Android**（iOS / macOS 代码保留但不发布，见 D15）；Android 一键出包：`./scripts/build-android.sh` |
 | P1 存储 key 清单 | ✅ 完成（`docs/STORAGE_KEYS.md`） |
 | M1 Flutter 骨架（模型 / 主题 / 图标 / 配置加载 / 数据层 / UI 层 / WebView 容器 / Bridge） | ✅ 代码完成，`flutter analyze` 0 issues |
 | 单元测试（摘要算法 / 快照往返 / 配置新鲜度 / App 级数据管理 / 下载解析 / chrome 档位 / lastGame / 配置契约 / HMAC 签名 / 配置差异 / 灰度分桶） | ✅ **138 个用例全过**（9 个测试文件） |
@@ -214,17 +219,17 @@ app/test/
 | 离线 L1：Service Worker | ✅ 已部署并实测（**Android**）：SW 激活 + 页面被接管 + 7 个工具入口全预缓存 + **断网秒开**（`svc wifi disable` 后 H5 完整渲染）；**macOS** 实测 SW 注册成功也有离线；**iOS** 如实显示「此平台不支持（需域名验证）」 |
 | 原生 Toast（不被 WebView 遮挡） | ✅ 已实现（`km/toast` MethodChannel） |
 | ~~M2 离线 L2 内置副本~~ | 🚫 **取消** —— L2 换 origin 会让 localStorage 与网页版分家（违反 D1 铁律） |
-| iOS 出包验证 | ✅ 已跑通（Xcode 16.2；`xcode-select` 指错是根因，见 `scripts/setup-ios.sh`） |
+| iOS 出包验证 | ⏸ **暂缓** —— 代码已跑通（Xcode 16.2；`xcode-select` 指错是根因，见 `scripts/setup-ios.sh`），但**不再投入**（D15） |
 | 端上 UI 冒烟测试 | ✅ **三端各 6 个用例全过**（Android `flutter test integration_test` 2:00 / iOS `flutter drive` 1:28 / macOS `flutter drive` 1:32）—— 最近页 / 小工具页 / WebView 加载远程 H5 / 返回键 / 离线能力如实探测 / Bridge 注入 |
 | App 正式名 | ✅ 改为 `kmlab Toolbox`（纯英文；站点标题「kmlab · 工具」中英混排，桌面标签不适用） |
 | **App 级数据管理**（导出全部 / 导入 / 清除全部） | ✅ 已实现（`lib/data/data_transfer.dart`；导出 = `.json` → 系统分享面板；导入支持「合并 / 完全覆盖」；清除有二次确认 + 先导出出口） |
 | **macOS 平台** | ✅ 已接入并跑通（`flutter build macos --debug` 出包；渲染树验证 UI 正常；三个 entitlement 配齐；原生 Toast 浮层自绘） |
-| **TestFlight 上架** | 🔄 阻塞在账号侧（无 Apple 签名身份）—— **逐步骤手册见 [docs/TESTFLIGHT.md](docs/TESTFLIGHT.md)**（路线 A 免费自用 5 步 / 路线 B 上架 40+ 步 / 常见错误速查）；`./scripts/setup-testflight.sh` 体检，`./scripts/run-ios-device.sh` 免费装到自己 iPhone |
+| **TestFlight 上架** | ⏸ **暂缓** —— 暂不开通 Apple 开发者账号（D15）。手册已写好放在 [docs/TESTFLIGHT.md](docs/TESTFLIGHT.md)，将来账号齐了直接照做 |
 | **拦截层（下载 / 外链）** | ✅ 已实现（`onNavigationRequest` 五级判定；`blob:`/`data:` 下载、外链交系统浏览器并 Toast 提示、`.zip/.pdf/.xlsx` 等 29 种扩展名自动识别；`webview.interceptDownloads` 之前只声明没实现，现在真正接上了） |
 | **配置即契约**（假开关清理） | ✅ 8 个「声明了但代码从没读过」的假开关已从配置与模型删除；新增 `app/test/config_contract_test.dart` 做守卫 —— 以后配置里再出现孤儿字段，测试直接红 |
 | **脑力慢养续接卡** | ✅ 新增 `lastGame` 算法（实测线上 bundle 的 `bf_progress` 真实结构）；游戏代码→中文名映射放在配置里，App 不硬编码 H5 的知识 |
 | **灰度发布** | ✅ 两份 URL + 设备稳定分桶（FNV-1a + murmur3 `fmix32` 终混合；同一设备永远同一个桶）；`remote.canaryUrl` + `remote.rolloutPercent`（0~100） |
 | **分享长图** | ✅ 纸片风海报（RepaintBoundary → PNG → 系统分享面板）；两个入口：工具 ⋯ 菜单「生成分享长图」+ 我的页「生成分享长图」；先弹预览再分享 |
-| **iOS 离线** | 🚧 **暂时做不到**（macOS 反而可以 ✅）—— iOS 的 WKWebView 只在「已验证的 app-bound domain」里暴露 SW API；域名验证要付费 Apple 账号 + Associated Domains + 站点 AASA。App 已如实显示「此平台不支持（需域名验证）」，等账号条件齐了按 DESIGN.md §5.9 的四步开 |
+| **iOS 离线** | 🚧 **暂时做不到**（macOS 反而可以 ✅）—— 且已随 iOS 一起暂缓—— iOS 的 WKWebView 只在「已验证的 app-bound domain」里暴露 SW API；域名验证要付费 Apple 账号 + Associated Domains + 站点 AASA。App 已如实显示「此平台不支持（需域名验证）」，等账号条件齐了按 DESIGN.md §5.9 的四步开 |
 | **iOS JS Bridge 修复** | ✅ **删掉 `WKAppBoundDomains`** —— 声明它会让所有 WKWebView 进入严格模式（拒绝 JS 注入 / message handler），域名又没验证 ⇒ 整个 Bridge 全废。删掉后 iOS 上 `window.KM` / 快照 / 下拉刷新 / JS channel **全部恢复** |
 | **chrome 四档** | ✅ `minimal` / `auto` / `immersive` / `full` 全部实跑验证：`auto` 档滚动淡出 + 停手 1.5s 自动收起（`autoHideDelayMs`）；`immersive` 档真全屏 + 顶部热区边缘下滑唤出工具栏 + 默认不显示进度条（`keepProgressBarInImmersive`） |
