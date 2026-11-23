@@ -6,12 +6,20 @@
 #                                Android 13 单色主题图标 ic_launcher_monochrome.png
 #                                Android 自适应图标描述 mipmap-anydpi-v26/ic_launcher.xml
 #   assets/icon-foreground.svg → Android 自适应前景层（只有笔画，没有底色）
+#   assets/icon-monochrome.svg → Android 13 单色主题图标（只有笔画，纯黑）
 #                                iOS AppIcon.appiconset/（按 Contents.json 列的 filename 逐个生成）
 #                                macOS AppIcon.appiconset/
+#
+# ⚠️ 三个 SVG 缺一不可：
+#    icon.svg          完整图标（牛皮纸底 + 墨线框 + 红 b + 蓝三线）= kmlab_site/public/favicon.svg
+#    icon-foreground   自适应前景层（**去掉底色**）—— 底色由 @color/ic_launcher_background 提供
+#    icon-monochrome   单色层（**去掉底色且去掉颜色**）—— 用 icon.svg 抠 alpha 会得到一整块黑方块
 #
 # 关键坑（真踩过）：
 #   iOS 那边不能自己发明文件名 —— 必须直接读 Contents.json，按它列的 filename 生成，
 #   否则 Xcode 压根不用你生成的图（桌面图标一直是 Flutter 默认 logo）。
+#   Android 这边同样不能只改 mipmap-*/ic_launcher.png —— API 26+ 用的是
+#   mipmap-anydpi-v26/ic_launcher.xml（自适应图标），少生成它，桌面还是 Flutter 默认 logo。
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -19,6 +27,7 @@ cd "$ROOT"
 
 FULL="assets/icon.svg"
 FORE="assets/icon-foreground.svg"
+MONO="assets/icon-monochrome.svg"
 ANDROID_RES="app/android/app/src/main/res"
 IOS_ICON="app/ios/Runner/Assets.xcassets/AppIcon.appiconset"
 MAC_ICON="app/macos/Runner/Assets.xcassets/AppIcon.appiconset"
@@ -49,13 +58,20 @@ else
 fi
 
 # ---------- Android 单色（Android 13 主题图标）----------
+# ⚠️ 必须用 icon-monochrome.svg（纯黑描边、无底色），
+#    不能从 icon.svg 抠 alpha —— icon.svg 的牛皮纸底是不透明的，
+#    抠出来会是一整块黑色方块（踩过）。
 echo "▸ Android 单色图标"
-for pair in "mdpi 108" "hdpi 162" "xhdpi 216" "xxhdpi 324" "xxxhdpi 432"; do
-  set -- $pair
-  d="$ANDROID_RES/mipmap-$1"
-  mkdir -p "$d"
-  magick "$FULL" -resize "${2}x${2}" -alpha extract -threshold 50% -negate -fill black -colorize 100 "$d/ic_launcher_monochrome.png"
-done
+if [ -f "$MONO" ]; then
+  for pair in "mdpi 108" "hdpi 162" "xhdpi 216" "xxhdpi 324" "xxxhdpi 432"; do
+    set -- $pair
+    d="$ANDROID_RES/mipmap-$1"
+    mkdir -p "$d"
+    magick -background none "$MONO" -resize "${2}x${2}" "$d/ic_launcher_monochrome.png"
+  done
+else
+  echo "⚠️ 缺少 $MONO，跳过单色图标"
+fi
 
 # ---------- Android 自适应图标描述 ----------
 mkdir -p "$ANDROID_RES/mipmap-anydpi-v26" "$ANDROID_RES/values"

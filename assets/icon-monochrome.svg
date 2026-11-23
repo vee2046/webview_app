@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="108" height="108" viewBox="0 0 108 108">
+  <!-- Android 13+ 主题图标（monochrome）专用层：只有单色剪影，底色由系统着色。
+       ⚠️ 不能用 icon.svg 来生成 —— 它带不透明的牛皮纸底，抠 alpha 会得到一整块黑色方块。
+       这里单独画一份黑色描边版，描边数据与 kmlab_site/public/favicon.svg 完全一致。 -->
+  <g transform="translate(54,54) scale(2.3) translate(-24,-24)"
+     fill="none" stroke="#000000" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M14 14 v20 h7 a7 7 0 0 0 0 -14 h-7 z"/>
+    <path d="M30 16 h8 M30 24 h7 M30 32 h8"/>
+  </g>
+</svg>
