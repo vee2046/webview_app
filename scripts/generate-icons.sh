@@ -35,6 +35,15 @@ MAC_ICON="app/macos/Runner/Assets.xcassets/AppIcon.appiconset"
 command -v magick >/dev/null 2>&1 || { echo "❌ 需要 ImageMagick（brew install imagemagick）"; exit 1; }
 [ -f "$FULL" ] || { echo "❌ 缺少 $FULL"; exit 1; }
 
+# ---------- Flutter 资产：favicon 拷进 app/assets ----------
+# App 里的品牌图标走 `SvgPicture.asset(app.icon)`，
+# 所以这张 SVG 必须**进 Flutter 的资产包**（pubspec.yaml 里声明了 assets/icon.svg）。
+# 仓库根的 assets/ 是唯一真相源（= kmlab_site/public/favicon.svg），这里同步过去。
+echo "▸ Flutter 资产"
+mkdir -p app/assets
+cp "$FULL" app/assets/icon.svg
+echo "  $FULL → app/assets/icon.svg"
+
 # ---------- Android 传统图标 ----------
 echo "▸ Android 传统图标"
 for pair in "mdpi 48" "hdpi 72" "xhdpi 96" "xxhdpi 144" "xxxhdpi 192"; do

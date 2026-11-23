@@ -1,10 +1,22 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="108" height="108" viewBox="0 0 108 108">
-  <!-- 自适应图标前景层：只有笔画，没有底色（底色由 @color/ic_launcher_background 提供）。
-       Android 会把前景层裁到中间 ~66dp 的安全区，所以这里整体放大并把中心对到 54,54。 -->
-  <g transform="translate(54,54) scale(2.3) translate(-24,-24)">
-    <path d="M14 14 v20 h7 a7 7 0 0 0 0 -14 h-7 z" fill="none" stroke="#d9534f" stroke-width="2.6"
-      stroke-linejoin="round" stroke-linecap="round"/>
-    <path d="M30 16 h8 M30 24 h7 M30 32 h8" fill="none" stroke="#3d6b8a" stroke-width="2.6"
-      stroke-linecap="round"/>
+  <!-- Android 自适应图标前景层。
+       ⚠️ 关键：这里画的是 **完整的 kmlab favicon**（墨线方框 + 红 b + 蓝三线），
+          不是「只有笔画」。
+
+       原因：Android 的自适应图标 = 背景层（@color/ic_launcher_background = #f6f1e4）
+       + 前景层。桌面图标 = 这两层叠起来再被系统裁成圆形/圆角方形。
+       如果前景层只有笔画，桌面上的图标就少了 favicon 那圈**墨线方框** ——
+       看着就「不像 kmlab_site 的图标」。
+
+       缩放：Android 只保证 108dp 画布中间的 **66dp 安全区**不被裁掉。
+       favicon 的墨线方框是 42×42（48 画布里），要让它正好落在 66dp 安全区里 →
+       缩放系数 = 60 / 42 ≈ 1.43（留一点余量），整体居中。
+
+       底色不画（背景层已经是 #f6f1e4），直接透出来，效果与 favicon 一致。 -->
+  <g transform="translate(54,54) scale(1.43) translate(-24,-24)"
+     fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="3" y="3" width="42" height="42" rx="6" stroke="#2f2a24" stroke-width="2.5"/>
+    <path d="M14 14 v20 h7 a7 7 0 0 0 0 -14 h-7 z" stroke="#d9534f" stroke-width="2.6"/>
+    <path d="M30 16 h8 M30 24 h7 M30 32 h8" stroke="#3d6b8a" stroke-width="2.6"/>
   </g>
 </svg>
