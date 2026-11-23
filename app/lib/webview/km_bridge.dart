@@ -98,28 +98,7 @@ class KmBridge {
   }
 
   /// 滚动方向监听 —— 供 `auto` 档 chrome 判断何时淡出/淡回顶栏。
-  static const String scrollScript = '''
-(function () {
-  if (window.__kmScrollBound) { return; }
-  window.__kmScrollBound = true;
-  var last = window.scrollY || 0;
-  var timer = null;
-  function report() {
-    var y = window.scrollY || 0;
-    var dy = y - last;
-    if (Math.abs(dy) > 4) {
-      last = y;
-      try {
-        var host = window.$channelName;
-        if (host && host.postMessage) {
-          host.postMessage(JSON.stringify({ action: 'scroll', dir: dy > 0 ? 'down' : 'up' }));
-        }
-      } catch (e) {}
-    }
-  }
-  window.addEventListener('scroll', report, { passive: true });
-})();
-''';
+
 
   /// 顶部边缘下滑手势（在页面里监听）—— 沉浸式档唤出工具栏的主通道。
   ///

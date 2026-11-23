@@ -20,13 +20,12 @@ ChromeMode chromeModeFrom(String? raw) => switch (raw) {
     };
 
 /// 工具打开方式
-enum OpenMode { webview, external, browser }
+// ⚠️ 这里原本有个 `OpenMode{webview, external, browser}` ——
+//    `external` 会让「点工具卡片」的行为因工具而异（有的弹「用别的 App 打开」）。
+//    用户明确要求「不做特例」，已连同配置里的 `open.mode` 一起删掉（D18）：
+//    **所有工具一律在 App 内的 WebView 里打开配置里的 url。**
 
-OpenMode openModeFrom(String? raw) => switch (raw) {
-      'external' => OpenMode.external,
-      'browser' => OpenMode.browser,
-      _ => OpenMode.webview,
-    };
+
 
 /// 返回键不接管路由时的回退目标
 enum BackFallback { home, exit }
@@ -223,7 +222,6 @@ class OfflineConfig {
 
 class OpenConfig {
   const OpenConfig({
-    required this.mode,
     required this.titleBar,
     required this.pullToRefresh,
     required this.chrome,
@@ -232,7 +230,6 @@ class OpenConfig {
     required this.overflowItems,
   });
 
-  final OpenMode mode;
   final bool titleBar;
   final bool pullToRefresh;
   final ChromeMode chrome;
@@ -242,15 +239,6 @@ class OpenConfig {
   /// ⋯ 溢出菜单项 —— 既是白名单也是显示顺序
   final List<String> overflowItems;
 
-  /// 是否为「自动隐藏顶栏」档。
-  ///
-  /// 这一档必须由**页面内**上报滚动方向，顶栏才能随滚动淡出；
-  /// 容器因此需要往页面注入滚动监听脚本。
-  /// ⚠️ 注意：判断必须用**当前工具**的档位，不能用全局默认
-  /// （`webview.chrome.default` 恒为 minimal —— 用它判断会让 auto 档永远失效，
-  /// 见 DESIGN.md BUG #22）。
-  bool get isAutoChrome => chrome == ChromeMode.auto;
-
   factory OpenConfig.fromJson(Map<String, dynamic> json, {
     ChromeMode defaultChrome = ChromeMode.minimal,
     bool defaultRouteBack = false,
@@ -258,7 +246,6 @@ class OpenConfig {
     List<String> defaultOverflow = const [],
   }) =>
       OpenConfig(
-        mode: openModeFrom(json['mode'] as String?),
         titleBar: json['titleBar'] as bool? ?? true,
         pullToRefresh: json['pullToRefresh'] as bool? ?? true,
         chrome: json['chrome'] == null
@@ -274,7 +261,6 @@ class OpenConfig {
       );
 
   Map<String, dynamic> toJson() => {
-        'mode': mode.name,
         'titleBar': titleBar,
         'pullToRefresh': pullToRefresh,
         'chrome': chrome.name,
@@ -459,7 +445,6 @@ class ChromeConfig {
     required this.immersiveTopHotZonePx,
     required this.immersiveFallbackButton,
     required this.hideSystemBars,
-    required this.autoHideDelayMs,
     required this.keepProgressBarInImmersive,
   });
 
@@ -469,7 +454,6 @@ class ChromeConfig {
   final double immersiveTopHotZonePx;
   final bool immersiveFallbackButton;
   final bool hideSystemBars;
-  final int autoHideDelayMs;
   final bool keepProgressBarInImmersive;
 
   factory ChromeConfig.fromJson(Map<String, dynamic> json) => ChromeConfig(
@@ -485,7 +469,6 @@ class ChromeConfig {
         immersiveFallbackButton:
             json['immersiveFallbackButton'] as bool? ?? true,
         hideSystemBars: json['hideSystemBars'] as bool? ?? false,
-        autoHideDelayMs: (json['autoHideDelayMs'] as num?)?.toInt() ?? 1500,
         keepProgressBarInImmersive:
             json['keepProgressBarInImmersive'] as bool? ?? false,
       );
@@ -497,7 +480,6 @@ class ChromeConfig {
         'immersiveTopHotZonePx': immersiveTopHotZonePx,
         'immersiveFallbackButton': immersiveFallbackButton,
         'hideSystemBars': hideSystemBars,
-        'autoHideDelayMs': autoHideDelayMs,
         'keepProgressBarInImmersive': keepProgressBarInImmersive,
       };
 }
@@ -648,7 +630,6 @@ class WebViewConfig {
                 immersiveTopHotZonePx: 28,
                 immersiveFallbackButton: true,
                 hideSystemBars: false,
-                autoHideDelayMs: 1500,
                 keepProgressBarInImmersive: false,
               ),
         overflow: json['overflow'] is Map<String, dynamic>
@@ -1185,7 +1166,6 @@ class AppConfig {
             immersiveTopHotZonePx: 28,
             immersiveFallbackButton: true,
             hideSystemBars: false,
-            autoHideDelayMs: 1500,
             keepProgressBarInImmersive: false,
           );
 

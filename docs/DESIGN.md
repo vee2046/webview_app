@@ -186,7 +186,6 @@ config/app.config.json
 | `tab` | string | 所属分类 id |
 | `url` | string | H5 地址 |
 | `offline` | object | 离线副本开关 / 路径 / 大小 |
-| `open.mode` | string | `webview` / `external` / `browser` |
 | `open.titleBar` | bool | 是否显示标题 |
 | `open.pullToRefresh` | bool | 是否支持下拉刷新 |
 | `open.chrome` | string | `full` / `auto` / `minimal` / `immersive` / `none` |
@@ -220,7 +219,6 @@ config/app.config.json
 | `chrome.immersiveTopHotZonePx` | 28 | 顶部热区高度（px） |
 | `chrome.immersiveFallbackButton` | true | 是否留兜底按钮 |
 | `chrome.hideSystemBars` | false | 是否连系统状态栏一起藏 |
-| `chrome.autoHideDelayMs` | 1500 | auto 档淡回延迟 |
 | `chrome.keepProgressBarInImmersive` | false | 沉浸式下是否保留进度条 |
 | `overflow.sheetStyle` | `grouped` | Action Sheet 分组样式 |
 | `overflow.confirmDanger` | true | 危险项二次确认 |
@@ -518,7 +516,7 @@ App 的 Dart 侧**读不到 WebView 沙箱里的 localStorage**。所以实现�
 
 | 配置项 | 之前的状况 | 现在的行为 |
 |---|---|---|
-| `autoHideDelayMs`（1500） | 从未使用 —— `auto` 档的顶栏一旦显示就永远压着内容 | 停止滚动 `autoHideDelayMs` 毫秒后顶栏自动收起；滚动时随时打断重计时 |
+| `auto` 档 | 早期版本会在停手后自动收起顶栏 | **已改为常驻**（D17）：很多工具的内容不满一屏，顶栏凭空消失会让人以为页面坏了 |
 | `keepProgressBarInImmersive`（false） | 从未使用 —— 沉浸式下顶部仍有一条 2.5px 进度条 | 沉浸式（以及用户手动切到全屏时）默认**不显示**进度条，改由骨架屏承担加载反馈 |
 | `immersiveRevealGesture`（`edge-swipe-down`） | 只解析不支持其它值 | 目前只有边缘下滑这一种，已实现（见 §5.3 ②） |
 
@@ -1204,6 +1202,28 @@ full / auto / minimal / immersive / none。immersive 必须配顶部热区下滑
 - iOS / macOS 相关的脚本（`setup-ios.sh` / `setup-testflight.sh` / `run-ios-device.sh`）与文档（`docs/TESTFLIGHT.md`）**保留但标注暂缓** —— 不删，是为了将来能直接用。
 
 ---
+### D17 🟢 工具顶栏**常驻**，不自动隐藏
+
+**决定**：`auto` 档不再自动收起顶栏。顶栏一旦显示就一直在 —— 滚动不隐藏、停手不收起。
+
+**理由**：
+1. 很多工具（药品、宝盒、任务清单…）的内容**不满一屏**，顶栏凭空消失会让人以为页面坏了、以为 App 卡了。
+2. 「省 44px」的收益远小于「用户以为出问题了」的代价。
+3. 真需要沉浸就明说 —— 用 `immersive` 档（真全屏、顶部热区唤出工具栏），那是有明确手势的另一种模式，不是「意外消失」。
+
+**连带清理**（不留死代码）：`webview.chrome.autoHideDelayMs`（配置 + 模型）、`OpenConfig.isAutoChrome`、`KmBridge.scrollScript`、`WebViewHost.onScrollDirection` 全部删除。
+
+### D18 🟢 点工具卡片**不做特例**：一律进配置的 url
+
+**决定**：删掉 `open.mode` 字段和 `external` / `browser` 两种打开方式。所有工具 —— 包括「井条条」这种本身是外部项目的 —— 点卡片都在 App 内的 WebView 里打开配置里的 url。
+
+**理由**：
+1. 同一个列表里「有的进 App、有的跳出去」= 行为不一致，用户每次都要重新判断。
+2. 外部跳转还多一个中间弹窗（`_ExternalToolSheet`），多一次点击。
+3. WebView 里打开外部页面一样能用，而且「在浏览器中打开」本来就留在 ⋯ 菜单里，想跳出去随时能跳。
+
+**代价**：外部页面在 App 内打开时没有原生 App 的体验（登录态、推送等）。可接受 —— 这些页面本来就是「看一眼 / 点个链接」。
+
 ### D16 🟡 顶栏右侧只留一个图标：网格 ⇄ 列表
 
 **决定**：最近页和小工具页的顶栏右侧**各只保留一个**按钮 = 切换显示格式（卡片 / 列表），两页共用同一个开关。移除原来的齿轮（跳「我的」）和小工具页的刷新按钮。
@@ -1267,12 +1287,12 @@ Flutter 侧：小工具页列数 `app.home.columns`（默认 2，clamp 1~3）。
 | 里程碑 | 状态 | 已完成 | 待做 |
 |---|---|---|---|
 | **M1 骨架** | ✅ | Flutter 工程 + 配置加载器 + 最近页（首屏）+ 小工具页 + 我的页 + WebView 容器（minimal/full/auto）+ 返回键 + 品牌资产（图标/分类/工具名/doodle）+ **App 正式名 `kmlab Toolbox`** + 单元测试（**146 个用例**） | ⏸ iOS / macOS 正式签名出包 —— **暂缓**（D15，当前只做 Android） |
-| **M2 体验** | ✅ | **视图偏好（网格 ⇄ 列表）✅（最近页 + 小工具页顶栏右侧各只留一个图标，共用一个开关，见 D16 / §5.15）** + chrome 四档 ✅（**minimal / auto / immersive / full 全部实跑验证**，含 immersive 顶部热区边缘下滑 + auto 档滚动淡出 + 停手 1.5s 自动收起） + 续接卡摘要 ✅ + ⋯ 溢出菜单（12 动作分组）✅ + 下拉刷新 ✅ + 加载进度 ✅ + 失败兜底页 ✅ + 导出分享面板 ✅ + **App 级数据管理（导出全部/导入/清除全部）✅** + 原生 Toast 通道 ✅ + 端上 UI 冒烟测试通道 ✅ + **离线 L1 Service Worker ✅（Android 已部署并实测断网秒开；macOS 实测 SW 也可用 ✅；**iOS 需「已验证的 app-bound domain」，无 Apple 账号时如实显示「此平台不支持」**，见 §5.9 与 BUG #27）** + **拦截层（下载 / 外链）✅** + **分享长图 ✅** | 长按抽屉 · 搜索 UI 打磨 |
+| **M2 体验** | ✅ | **视图偏好（网格 ⇄ 列表）✅（最近页 + 小工具页顶栏右侧各只留一个图标，共用一个开关，见 D16 / §5.15）** + chrome 四档 ✅（**minimal / auto / immersive / full 全部实跑验证**；含 immersive 顶部热区边缘下滑；**auto 档已改为常驻、不再自动隐藏 —— D17**） + 续接卡摘要 ✅ + ⋯ 溢出菜单（12 动作分组）✅ + 下拉刷新 ✅ + 加载进度 ✅ + 失败兜底页 ✅ + 导出分享面板 ✅ + **App 级数据管理（导出全部/导入/清除全部）✅** + 原生 Toast 通道 ✅ + 端上 UI 冒烟测试通道 ✅ + **离线 L1 Service Worker ✅（Android 已部署并实测断网秒开；macOS 实测 SW 也可用 ✅；**iOS 需「已验证的 app-bound domain」，无 Apple 账号时如实显示「此平台不支持」**，见 §5.9 与 BUG #27）** + **拦截层（下载 / 外链）✅** + **分享长图 ✅** | 长按抽屉 · 搜索 UI 打磨 |
 | **M3 生态** | 🔄 | `resume.mode: storage` 已跑通 ✅ + **脑力慢养续接卡 ✅（`lastGame` 算法，实测 `bf_progress`）** | Bridge 落地（title/toast/share/export/openTool 已写，待 H5 侧接入）· Bridge 上报通道（跨仓库，需 h5_tools 侧配合）· 常用置顶持久化 ✅（本地） |
 | **M4 运营** | 🔄 | 远端配置链路 ✅ + 内容嗅探 ✅ + 新鲜度保护 ✅ + **签名校验 ✅（HMAC-SHA256，真做）** + **配置 diff 提示 ✅（热更可审）** + **灰度发布 ✅（两份 URL + 设备稳定分桶，见 §5.13）** + 三份副本同步脚本 ✅ + 远端自查脚本 ✅ | 工具上下架与推荐位 |
 | **M5 扩展** | 🔄 | 深色模式 ✅ + **macOS 平台接入 ✅（出包 + 跑通 + 沙箱 entitlement）** + **分享长图 ✅（纸片风海报，见 §5.14）** | **仅剩**：TestFlight 上传 —— ⏸ **暂缓**（不开通 Apple 账号，D15；步骤已写好在 `docs/TESTFLIGHT.md`，将来账号齐了直接照做）<br>~~多语言 / 桌面 Widget / 平板手表适配~~ —— 用户明确「只要兼容手机」 |
 
-#### 实跑中修掉的 29 个真 BUG
+#### 实跑中修掉的 31 个真 BUG
 
 | # | 现象 | 根因 | 修法 |
 |---|---|---|---|
@@ -1297,7 +1317,7 @@ Flutter 侧：小工具页列数 `app.home.columns`（默认 2，clamp 1~3）。
 | 19 | `webview.interceptDownloads` 声明了但**从未被任何代码读取**；同源下载会把 WebView 导航到二进制 → 坏页；站外链接交出去后 App 里毫无反馈 | 下载被 Android 的 DownloadListener 当成主框架导航；`blob:` / `data:` 一律 prevent 后无下文；外链交接没有提示 | 新增 `lib/data/downloader.dart`（下载 + 文件名消毒）+ `onNavigationRequest` 五级判定（§5.12）+ `webview.downloadExtensions` 配置项 + `blob:` 走页面回传 + 每次交接给原生 Toast |
 | 20 | ⋯「刷新页面」点了没反应；**「清除这个工具的数据」只清了 App 侧快照，WebView 里的 localStorage 纹丝不动**（用户重开工具数据还在）；导入数据也同步不回 WebView | `ToolDetailPage` 里声明了 `WebViewController? _controller` 但**从未被赋值** —— 控制器归 `WebViewHost` 所有，而 `WebViewHost` 收到的 `controller: _controller` 是 null，于是自己 new 了一个；`_controller` 永远是 null，所有 `_controller?.xxx()` 全是静默 no-op | 删掉 `_controller` 字段，改用 `_hostKey.currentState?.xxx()`；`WebViewHostState` 补 `runScript / canGoBack / goBack`，`reload()` 改成 `Future<void>` |
 | 21 | 下载下来的文件名里的中文全变成 `_`（「月度报告.txt」→「月度报告_.txt」） | Dart 的 `\w` **只认 ASCII 词字符**，`RegExp(r'[^\w.\- ]')` 把非 ASCII 全判成非法字符 | `sanitizeFileName` 改成按 code point 遍历：`rune > 0x7f`（非 ASCII）一律保留，其余按 `^[A-Za-z0-9._\- ]$` 判断；长度截断改按 runes 列表取最后 96 个 |
-| 22 | `auto`（自动隐藏顶栏）档**完全失效** —— 通往 AGI 之路的顶栏永远压着内容，从不淡出 | `webview_host.dart` 注入滚动监听时判断的是 `config.webview.chrome.defaultMode == ChromeMode.auto`，而 `webview.chrome.default` 恒为 `minimal` → 条件永远为假 → `KmBridge.scrollScript` 从未被注入 → 页面不上报滚动方向 → 顶栏不淡出 | 改用当前工具的档位 `widget.tool.open.isAutoChrome`（判断入口收在 `OpenConfig.isAutoChrome`），并补 `app/test/chrome_test.dart` 守住；实跑验证：滚下去顶栏隐藏、滚回来顶栏显示、停手 1.5s 自动收起 |
+| 22 | `auto`（自动隐藏顶栏）档**完全失效** —— 通往 AGI 之路的顶栏永远压着内容，从不淡出 | `webview_host.dart` 注入滚动监听时判断的是 `config.webview.chrome.defaultMode == ChromeMode.auto`，而 `webview.chrome.default` 恒为 `minimal` → 条件永远为假 → `KmBridge.scrollScript` 从未被注入 → 页面不上报滚动方向 → 顶栏不淡出 | 改用当前工具的档位判断 + `app/test/chrome_test.dart` 守住（当时修好了）。⚠️ **后来这个能力被整体删除** —— 用户反馈「很多页面不满一屏，顶栏凭空消失会让人以为页面坏了」，auto 档改为**常驻**（D17），`autoHideDelayMs` / `isAutoChrome` / `scrollScript` 一并从代码与配置里移除 |
 | 23 | 配置里有一整族「声明了但代码里从没读过」的**假开关** —— 运营改了以为生效，实际毫无反应 | `webview` 块里的 `javascriptEnabled` / `domStorageEnabled` / `databaseEnabled` / `allowFileAccess` / `allowContentAccess` / `mediaPlaybackRequiresUserGesture` / `cacheMode` 在 `webview_flutter` 里**没有对应平台 API**（或恒为 true）；`allowUniversalAccessFromFileUrls` 连模型里都没有 | 逐项审计（配置叶子路径 → 扫 `app/lib` 里的 `json['…']` 读取点）→ **8 个假开关从配置与模型里同时删除**；两个真开关 `handleHardwareBack` / `errorRetryInWebview` 真做实；新增 `app/test/config_contract_test.dart` 做「配置即契约」守卫，以后再出现孤儿字段就红 |
 | 24 | 脑力慢养的续接卡永远是「上一局还没打完」 | 配置写的是 `resume.mode: "bridge"`，但**没有任何 Bridge 上报通道** —— H5 侧没接，App 侧也就永远收不到 | 实测线上 bundle 摸清 `bf_progress` 的真实结构（今天没打完的那一局，H5 自己会清理过期）→ 新增 `ExtractKind.lastGame` 算法（三级降级：分数 → 步数 → 只有游戏名），`resume.mode` 改回 `storage`；游戏代码→中文名映射放进**配置**（App 不硬编码 H5 的知识） |
 | 25 | 「我的 → 签名校验」开关**点了没反应**（纯装饰）；`remote.requireSignature` 在 loader 里只有一行 `TODO(M4)`，**签名从来就没被校验过** | 与 BUG #23 同一族：配置声明了能力、代码没实现。签名开关连 `onChanged` 都没有，`_Switch(on: ...)` 只是个显示 | 新增 `lib/config/config_signature.dart`（纯 Dart HMAC-SHA256，零依赖）+ `lib/config/config_diff.dart`；`parseAndValidate` 改成同时拿到原始 Map 并在 `requireSignature` 时验签，不通过 → 拒绝沿用本地；签名开关改成真开关且**只能加严不能放松**；新增 `scripts/sign-config.sh` 与 `app/test/config_signature_test.dart`（用 Dart 验 python 签的文件，锁死跨语言一致性）；顺带补上「配置 diff 提示」，让热更可审（§4.4.2 / §4.4.3） |
@@ -1309,6 +1329,9 @@ Flutter 侧：小工具页列数 `app.home.columns`（默认 2，clamp 1~3）。
 | 28 | **Android 桌面图标一直是 Flutter 默认的蓝色 logo**（不是 kmlab 的 favicon） | `scripts/generate-icons.sh` 写好了但**从没在 Android 侧成功跑过** —— `res/` 里只剩 `flutter create` 生成的模板 PNG（`eb05e57` 初始提交带进来的），`mipmap-anydpi-v26/ic_launcher.xml` / `ic_launcher_foreground.png` / `ic_launcher_monochrome.png` / `values/colors.xml` **一个都没有**。而且 API 26+ 用的是自适应图标（`mipmap-anydpi-v26/ic_launcher.xml`），**只改 `mipmap-*/ic_launcher.png` 也没用** | 跑 `scripts/generate-icons.sh` 生成三层资源（传统 / 自适应前景 / Android 13 单色）+ `mipmap-anydpi-v26/ic_launcher.xml` + `values/colors.xml`；**单色层不能用 `icon.svg` 抠 alpha**（牛皮纸底不透明 → 抠出来是一整块黑方块），单独画 `assets/icon-monochrome.svg`（纯黑描边）；实机确认桌面已是「牛皮纸底 + 红 b + 蓝三线」 |
 
 | 29 | **App 里根本没有品牌图标** —— 小工具页顶栏只有「kmlab / handmade workspace」两行字；「我的 → 关于」写着「名称 / 图标 / 分类复用 kmlab_site」，但**一个图标都没显示** | 两个真缺口：① `assets/icon.svg` **压根没进 pubspec 的 assets** → Dart 侧根本拿不到这张图；② 配置里的 `app.icon`（`"assets/icon.svg"`）**从没被任何 UI 读过** —— 模型 `fromJson` 读了所以「配置即契约」守卫查不出来，但 UI 根本没用它（死字段） | `pubspec.yaml` 加 `assets/icon.svg`；新增 `ui/widgets/app_logo.dart`（`SvgPicture.asset` + 读不到时退回工具盒 doodle，不崩）；小工具页顶栏 / 我的页「关于」品牌卡 / 分享长图品牌行三处用起来，路径全部取自 `config.app.icon`；`generate-icons.sh` 增加「把 favicon 同步进 `app/assets/`」步骤（根 `assets/` 是唯一真相源）；`config_contract_test.dart` 加两个用例 —— **资产真实存在且已进 pubspec** + **在 UI 层有使用点**（防再退化成死字段） |
+
+| 30 | **通往 AGI 之路的顶栏几秒后凭空消失**，向上滚动才又出现 | `auto` 档的「停手 1.5s 自动收起」逻辑 —— 但**很多工具的内容不满一屏**，顶栏自己藏起来会让人以为页面坏了 | `auto` 档改为**常驻**（D17）：去掉 `AnimatedContainer` 的高度动画、去掉滚动方向监听与自动收起定时器；`autoHideDelayMs` / `isAutoChrome` / `KmBridge.scrollScript` / `WebViewHost.onScrollDirection` 一并删除（不留死代码）；实跑验证：加载完 18 秒顶栏仍在，滚动两屏后仍在 |
+| 31 | 点「井条条」卡片弹「这是另一个 App，会用系统方式打开」 —— **同一个列表里有的进 App、有的跳出去，行为不一致** | 配置里 `open.mode` 有三种取值，`jingtt` 配的是 `external` → `RootShell` 里有个专门的分支弹 `_ExternalToolSheet` | 用户要求「app 类型的工具也直接进配置的 url，不做特例」⇒ **`open.mode` 整个字段删除**（配置 + 模型 + `OpenMode` 枚举 + 分支 + `_ExternalToolSheet`）；所有工具一律在 App 内 WebView 打开配置里的 url；`jingtt` 的 chrome 由 `none` 改 `minimal`；`config_contract_test.dart` 加一条钉死「配置里不许再有 `open.mode`」 |
 
 ### 8.1 跨仓库配合任务（与 h5_tools / kmlab_site）
 
@@ -1393,7 +1416,7 @@ app/
 
 ---
 
-## §9 拍板结果（17 条全部已定）
+## §9 拍板结果（19 条全部已定）
 
 > 无待拍板项 · 可直接排期开发
 
@@ -1416,6 +1439,8 @@ app/
 | 15 | 导出数据落地形式？ | ✅ **`.json` 文件 + 系统分享面板**，剪贴板仅兜底 | 导出/导入模块 |
 | 16 | iOS / macOS 要不要一起发？ | ⏸ **暂缓，当前只做 Android** —— 暂不开通 Apple 开发者账号（$99/年）；iOS / macOS 代码保留但不发布、不投入（D15） | 迭代范围 |
 | 17 | 顶栏右侧那个图标该干什么？ | ✅ **切显示格式（网格 ⇄ 列表）** —— 最近页与小工具页共用一个开关；原来的齿轮（跳「我的」）和小工具页的刷新按钮都撤掉（D16） | 顶栏语义 |
+| 18 | 工具顶栏要自动隐藏吗？ | ✅ **不要隐藏，常驻** —— 很多工具内容不满一屏，顶栏凭空消失会让人以为页面坏了；要沉浸就明说用 immersive 档（D17） | chrome 档位 |
+| 19 | 「井条条」这种外部项目的卡片点了怎么办？ | ✅ **照样进配置的 url** —— 删掉 `open.mode` 与 external / browser 特例，所有工具一律在 App 内 WebView 打开（D18） | 打开方式 |
 
 ---
 

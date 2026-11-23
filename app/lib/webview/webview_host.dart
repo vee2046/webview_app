@@ -22,7 +22,6 @@ class WebViewHost extends StatefulWidget {
     required this.onTitleChanged,
     required this.onSnapshot,
     required this.onBridgeMessage,
-    required this.onScrollDirection,
     this.onExternalLink,
     this.onDownloadRequested,
     this.onServiceWorkerState,
@@ -43,7 +42,6 @@ class WebViewHost extends StatefulWidget {
   final ValueChanged<KmHostMessage> onBridgeMessage;
 
   /// 页面滚动方向（`down` / `up`）—— 供 `auto` 档 chrome 淡入淡出。
-  final ValueChanged<String> onScrollDirection;
 
   /// 页面要跳到站外 / 非 http 协议时回调（宿主负责用系统浏览器打开）。
   final ValueChanged<String>? onExternalLink;
@@ -116,7 +114,6 @@ class WebViewHostState extends State<WebViewHost> {
           final parsed = KmBridge.parse(message.message);
           if (parsed == null) return;
           if (parsed.action == 'scroll') {
-            widget.onScrollDirection(parsed.payload['dir']?.toString() ?? 'down');
             return;
           }
           widget.onBridgeMessage(parsed);
@@ -259,9 +256,6 @@ class WebViewHostState extends State<WebViewHost> {
       // ⚠️ 判断必须用**当前工具**的档位（`tool.open.chrome`），
       // 不能用全局默认 `webview.chrome.default`（恒为 minimal）——
       // 那样 auto 档永远拿不到滚动脚本，顶栏就永远不会淡出（BUG #22）。
-      if (widget.tool.open.isAutoChrome) {
-        await _js(KmBridge.scrollScript, 'scroll 监听');
-      }
       await _js(KmBridge.edgeSwipeScript(
         chrome.immersiveTopHotZonePx,
       ), '边缘下滑');

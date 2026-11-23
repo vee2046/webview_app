@@ -1,11 +1,14 @@
 /// chrome 四档 —— 回归守卫。
 ///
-/// 重点防两件事：
+/// 重点防三件事：
 ///  1. **不能拿 `webview.chrome.default` 判断当前工具是不是 auto 档** ——
 ///     它恒为 `minimal`，当初就是这么把 auto 档写废的（BUG #22）。
 ///  2. 沉浸式下默认不保留顶部进度条。
+///  3. **auto 档必须常驻** —— 早期版本会在停手 1.5s 后自动收起顶栏，
+///     但很多工具内容不满一屏，顶栏凭空消失会让人以为页面坏了（D17）。
 library;
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -27,7 +30,6 @@ WebViewHost hostFor(AppConfig config, String toolId, {ChromeMode? chrome}) {
     onTitleChanged: (_) {},
     onSnapshot: (_) {},
     onBridgeMessage: (_) {},
-    onScrollDirection: (_) {},
   );
 }
 
@@ -47,17 +49,17 @@ void main() {
       expect(auto, ['feishu']);
     });
 
-    test('isAutoChrome 只对 auto 档为真', () {
-      expect(config.toolById('feishu')!.open.isAutoChrome, isTrue);
-      expect(config.toolById('checkin')!.open.isAutoChrome, isFalse);
-      expect(config.toolById('mindx')!.open.isAutoChrome, isFalse);
-    });
-
-    test('其它工具不会被误判成 auto', () {
-      for (final tool in config.tools) {
-        if (tool.id == 'feishu') continue;
-        expect(tool.open.isAutoChrome, isFalse, reason: '${tool.id} 不该是 auto');
-      }
+    test('auto 档常驻 —— 配置里已经没有「自动隐藏延迟」这个字段', () {
+      // 有这个字段就说明「顶栏会自动收起」的能力还在，
+      // 一旦有人改回去，页面不满一屏时顶栏又会凭空消失（D17）。
+      final raw = File('../config/app.config.json').readAsStringSync();
+      final decoded = jsonDecode(raw) as Map<String, dynamic>;
+      final chrome = decoded['webview']['chrome'] as Map<String, dynamic>;
+      expect(
+        chrome.containsKey('autoHideDelayMs'),
+        isFalse,
+        reason: 'auto 档已改为常驻，autoHideDelayMs 应该从配置里删掉',
+      );
     });
   });
 
@@ -83,10 +85,6 @@ void main() {
   });
 
   group('chrome 配置本身', () {
-    test('autoHideDelayMs 是正数（auto 档停手要自动收起）', () {
-      expect(config.webview.chrome.autoHideDelayMs, greaterThan(0));
-    });
-
     test('options 覆盖四档', () {
       final options = config.webview.chrome.options;
       expect(options, contains(ChromeMode.full));

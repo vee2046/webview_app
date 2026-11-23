@@ -134,6 +134,21 @@ void main() {
     );
   });
 
+  test('配置里没有 open.mode —— 点工具卡片不做特例', () {
+    // 以前 jingtt 是 open.mode = "external"，点卡片会弹「用别的 App 打开」。
+    // 用户要求「app 类型的工具也直接进配置的 url，不做特例」⇒ 字段整个删掉。
+    // ⚠️ 通用的孤儿字段守卫查不出它 —— 因为 resume.extract 里也有个 "mode" 字段，
+    //    `json['mode']` 在代码里确实存在。所以这里单独钉一条。
+    for (final tool in (decoded['tools'] as List)) {
+      final open = (tool as Map)['open'] as Map;
+      expect(
+        open.containsKey('mode'),
+        isFalse,
+        reason: '${tool['id']} 的 open.mode 不该存在 —— 所有工具一律在 App 内 WebView 打开',
+      );
+    }
+  });
+
   test('8 个假开关确实已删干净', () {
     const removed = [
       'javascriptEnabled',

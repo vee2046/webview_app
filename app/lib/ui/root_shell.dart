@@ -72,15 +72,6 @@ class _RootShellState extends State<RootShell> {
     final config = widget.configStore.config;
     if (config == null) return;
 
-    // 外部 App / 浏览器
-    if (tool.open.mode == OpenMode.external || tool.open.mode == OpenMode.browser) {
-      await showDialog<void>(
-        context: context,
-        builder: (_) => _ExternalToolSheet(tool: tool),
-      );
-      return;
-    }
-
     await widget.usage.recordOpen(tool.id);
     if (!mounted) return;
 
@@ -418,69 +409,3 @@ class _NavItem extends StatelessWidget {
   }
 }
 
-// ── 外部工具提示 ──────────────────────────────────────────────
-
-class _ExternalToolSheet extends StatelessWidget {
-  const _ExternalToolSheet({required this.tool});
-
-  final ToolConfig tool;
-
-  @override
-  Widget build(BuildContext context) {
-    final p = context.paper;
-    return SafeArea(
-      top: false,
-      child: Container(
-        margin: const EdgeInsets.all(10),
-        padding: const EdgeInsets.fromLTRB(18, 16, 18, 10),
-        decoration: BoxDecoration(
-          color: p.paperCard,
-          borderRadius: paperBorderRadius(20, alternate: 12),
-          border: Border.all(color: p.ink, width: 2.5),
-          boxShadow: p.shadowHover,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            DoodleIcon(tool.icon, size: 40, color: p.ink),
-            const SizedBox(height: 10),
-            Text(
-              tool.title,
-              style: TextStyle(
-                fontSize: 16,
-                color: p.ink,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              tool.open.mode == OpenMode.external
-                  ? '这个工具是另一个 App，会用系统方式打开。'
-                  : '这个工具会在浏览器里打开。',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12.5, color: p.inkSoft),
-            ),
-            const SizedBox(height: 14),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('知道了'),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: FilledButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('打开'),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}

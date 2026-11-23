@@ -65,11 +65,7 @@ class _ToolDetailPageState extends State<ToolDetailPage>
   late ChromeMode _chrome;
   late bool _immersiveRevealed = false;
   String _title = '';
-  bool _barVisible = true;
   bool _chromePinned = false;
-
-  /// 「自动隐藏」档的顶栏自动收起定时器（见 `autoHideDelayMs`）。
-  Timer? _autoHideTimer;
 
   /// 站内 Service Worker 是否已注册成功（= 这个工具已经能离线打开）
   bool _offlineReady = false;
@@ -96,15 +92,11 @@ class _ToolDetailPageState extends State<ToolDetailPage>
     super.initState();
     _chrome = widget.tool.open.chrome;
     _title = widget.tool.title;
-    _barVisible = _chrome != ChromeMode.immersive;
-    // 自动隐藏档：顶栏不会一直压着内容，停手一会儿就自己收起来。
-    if (_chrome == ChromeMode.auto) _scheduleAutoHide();
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _autoHideTimer?.cancel();
     _restoreSystemBars();
     super.dispose();
   }
@@ -265,28 +257,6 @@ class _ToolDetailPageState extends State<ToolDetailPage>
           widget.usage.updateSummary(widget.tool.id, s);
         }
     }
-  }
-
-  void _onScrollDirection(String dir) {
-    if (_chrome != ChromeMode.auto) return;
-    _autoHideTimer?.cancel();
-    final want = dir == 'up';
-    if (want != _barVisible && mounted) setState(() => _barVisible = want);
-    // 「自动隐藏」档：顶栏不能一直压着内容 —— 停止滚动 autoHideDelayMs 后自己收起来。
-    if (_barVisible) _scheduleAutoHide();
-  }
-
-  /// 安排顶栏在 `autoHideDelayMs` 之后自动隐藏。
-  void _scheduleAutoHide() {
-    _autoHideTimer?.cancel();
-    final delay = widget.config.webview.chrome.autoHideDelayMs;
-    if (delay <= 0) return;
-    _autoHideTimer = Timer(Duration(milliseconds: delay), () {
-      if (!mounted) return;
-      if (_chrome == ChromeMode.auto && _barVisible) {
-        setState(() => _barVisible = false);
-      }
-    });
   }
 
   // ── ⋯ 溢出菜单 ───────────────────────────────────────────────
@@ -737,19 +707,18 @@ class _ToolDetailPageState extends State<ToolDetailPage>
                   onBack: _handleBack,
                   onOverflow: _showOverflow,
                 ),
+              // auto 档 = 「精简顶栏（带标题、不显示 URL）」。
+              // ⚠️ **常驻，不自动隐藏** —— 早期版本会在停手 1.5s 后自己收起来、
+              //    滚动到底才再出现。但很多工具的内容不满一屏，顶栏凭空消失
+              //    会让人以为页面出问题了（实测「通往 AGI 之路」就是这样）。
+              //    需要「真全屏」就用 immersive 档（无 chrome，顶部热区唤出）。
               if (chrome == ChromeMode.auto)
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 220),
-                  height: _barVisible ? 44 : 0,
-                  child: _barVisible
-                      ? _FullTopBar(
-                          title: _title,
-                          url: widget.tool.url,
-                          onBack: _handleBack,
-                          onOverflow: _showOverflow,
-                          compact: true,
-                        )
-                      : const SizedBox.shrink(),
+                _FullTopBar(
+                  title: _title,
+                  url: widget.tool.url,
+                  onBack: _handleBack,
+                  onOverflow: _showOverflow,
+                  compact: true,
                 ),
               // immersive 档：工具栏必须「浮在 WebView 之上」，
               // 绝不能作为 Column 的直接子节点 —— Column 子节点高度无界，
@@ -772,7 +741,6 @@ class _ToolDetailPageState extends State<ToolDetailPage>
                         onSnapshot: _onSnapshot,
                         onBridgeMessage: _onBridgeMessage,
                         onServiceWorkerState: _onServiceWorkerState,
-                        onScrollDirection: _onScrollDirection,
                         onExternalLink: _handleExternalLink,
                         onDownloadRequested: _startDownload,
                       ),

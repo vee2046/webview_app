@@ -198,7 +198,7 @@ app/test/
 
 ## 文档
 
-- [设计文档 docs/DESIGN.md](docs/DESIGN.md) —— 架构、字段全表、品牌对齐表、校验规则、状态设计、15 条设计决策、迭代路线（M1~M5 全部排期 + 5 项跨仓库配合任务）、17 条拍板结果、13 条开发风险、**29 个实跑真 BUG**、iOS / macOS 适配要点（§5.9）、端上 UI 冒烟测试通道（§5.10）、App 级数据管理（§5.11）、拦截层（下载 / 外链，§5.12）、远端配置签名（§4.4.2）、配置 diff 提示（§4.4.3）、灰度发布（§5.13）、分享长图（§5.14）、视图偏好（网格 ⇄ 列表，§5.15）
+- [设计文档 docs/DESIGN.md](docs/DESIGN.md) —— 架构、字段全表、品牌对齐表、校验规则、状态设计、17 条设计决策、迭代路线（M1~M5 全部排期 + 5 项跨仓库配合任务）、19 条拍板结果、13 条开发风险、**31 个实跑真 BUG**、iOS / macOS 适配要点（§5.9）、端上 UI 冒烟测试通道（§5.10）、App 级数据管理（§5.11）、拦截层（下载 / 外链，§5.12）、远端配置签名（§4.4.2）、配置 diff 提示（§4.4.3）、灰度发布（§5.13）、分享长图（§5.14）、视图偏好（网格 ⇄ 列表，§5.15）
 - [存储 key 清单 docs/STORAGE_KEYS.md](docs/STORAGE_KEYS.md) —— 8 个工具的真实 localStorage / IndexedDB key + 续接卡摘要算法
 - [**iOS 上架手册 docs/TESTFLIGHT.md**](docs/TESTFLIGHT.md) —— 逐步骤操作手册（点哪里 / 看到什么 / 错了怎么办）：路线 A 免费自用 + 路线 B 上架 TestFlight + 常见错误速查
 - [设计示意图 prototype/index.html](prototype/index.html) —— 可交互原型
@@ -239,4 +239,5 @@ app/test/
 | **iOS JS Bridge 修复** | ✅ **删掉 `WKAppBoundDomains`** —— 声明它会让所有 WKWebView 进入严格模式（拒绝 JS 注入 / message handler），域名又没验证 ⇒ 整个 Bridge 全废。删掉后 iOS 上 `window.KM` / 快照 / 下拉刷新 / JS channel **全部恢复** |
 | **App 内品牌图标** | ✅ **已实现** —— 小工具页顶栏 / 我的页「关于」品牌卡 / 分享长图底部三处都显示 kmlab_site 的 favicon；路径取自配置的 `app.icon`（配置即契约）。⚠️ 修掉了一个「死字段」：之前 `app.icon` 模型读了但 UI 从没用过，而且 `assets/icon.svg` 压根没进 pubspec（App 里一个图标都没有） |
 | **视图偏好（网格 ⇄ 列表）** | ✅ **已实现并实跑验证** —— 最近页 + 小工具页顶栏右侧各只留一个图标，切换两页共用的显示格式（`ViewPrefs`；配置 `app.home.layout` 是默认值，用户手动选过则以用户为准并持久化）。原来顶栏的齿轮（跳「我的」）和小工具页的刷新按钮已移除（见 D16） |
-| **chrome 四档** | ✅ `minimal` / `auto` / `immersive` / `full` 全部实跑验证：`auto` 档滚动淡出 + 停手 1.5s 自动收起（`autoHideDelayMs`）；`immersive` 档真全屏 + 顶部热区边缘下滑唤出工具栏 + 默认不显示进度条（`keepProgressBarInImmersive`） |
+| **chrome 四档** | ✅ `minimal` / `auto` / `immersive` / `full` 全部实跑验证。**`auto` 档已改为常驻、不再自动隐藏**（D17）—— 很多工具内容不满一屏，顶栏凭空消失会让人以为页面坏了；连带删掉 `autoHideDelayMs` / `isAutoChrome` / `scrollScript` / `onScrollDirection`。`immersive` 档真全屏 + 顶部热区边缘下滑唤出工具栏 + 默认不显示进度条（`keepProgressBarInImmersive`） |
+| **点工具卡片不做特例** | ✅ 删掉 `open.mode` 字段与 `external` / `browser` 两种打开方式（D18）—— 所有工具（含「井条条」）一律在 App 内 WebView 打开配置里的 url，不再弹「这是另一个 App」 |
