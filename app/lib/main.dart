@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'config/config_loader.dart';
 import 'config/config_store.dart';
 import 'data/usage_store.dart';
+import 'data/view_prefs.dart';
 import 'theme/paper_theme.dart';
 import 'ui/root_shell.dart';
 
@@ -12,13 +13,20 @@ Future<void> main() async {
 
   final configStore = ConfigStore(loader: ConfigLoader());
   final usage = UsageStore();
+  final viewPrefs = ViewPrefs();
 
   await usage.load();
+  await viewPrefs.load();
 
   final prefs = await SharedPreferences.getInstance();
   final dark = prefs.getBool('km.theme.dark') ?? false;
 
-  runApp(KmlabApp(configStore: configStore, usage: usage, initialDark: dark));
+  runApp(KmlabApp(
+    configStore: configStore,
+    usage: usage,
+    viewPrefs: viewPrefs,
+    initialDark: dark,
+  ));
 
   // 首屏已经用内置快照渲染出来了，后台再静默拉远端配置。
   unawaited(configStore.bootstrap());
@@ -33,11 +41,13 @@ class KmlabApp extends StatefulWidget {
     super.key,
     required this.configStore,
     required this.usage,
+    required this.viewPrefs,
     required this.initialDark,
   });
 
   final ConfigStore configStore;
   final UsageStore usage;
+  final ViewPrefs viewPrefs;
   final bool initialDark;
 
   @override
@@ -64,6 +74,7 @@ class _KmlabAppState extends State<KmlabApp> {
       home: RootShell(
         configStore: widget.configStore,
         usage: widget.usage,
+        viewPrefs: widget.viewPrefs,
         darkMode: _dark,
         onDarkModeChanged: _setDark,
       ),

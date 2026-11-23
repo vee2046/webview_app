@@ -453,9 +453,23 @@ App 的 Dart 侧**读不到 WebView 沙箱里的 localStorage**。所以实现�
 
 六种摘要算法（`countToday` / `count` / `countDateMap` / `lastGame` / `field` / `none`）详见 `docs/STORAGE_KEYS.md`。
 
+#### 顶栏右侧只留一个图标：网格 ⇄ 列表
+
+「最近」页和「小工具」页的顶栏右侧**各只有一个按钮**，作用是**切换这两页数据的显示格式**（卡片 / 列表）。
+
+| 之前 | 现在 |
+|---|---|
+| 最近页：齿轮 → 跳「我的」 | 最近页：网格/列表图标 → 切显示格式 |
+| 小工具页：↻ 刷新配置 + 齿轮 → 跳「我的」 | 小工具页：网格/列表图标 → 切显示格式 |
+
+- **为什么去掉齿轮**：底部导航本来就有「我的」，顶栏再放一个跳页按钮 = 功能重复 + 语义混乱（一个图标一会儿跳页一会儿刷新）。
+- **「刷新远端配置」去哪了**：下沉到「我的」页（配置区块里本来就有刷新按钮）。配置本来也是启动时静默刷新的，手动刷新是低频操作。
+- **两页共用同一个开关**（`ViewPrefs`）—— 同一份数据、同一套排版偏好，不给用户「两处设置」的机会。
+- 详见 §5.15。
+
 #### ② 小工具页卡片规则
 
-- 布局 `app.home.layout=grid`，列数 `app.home.columns=2`
+- 布局默认值 `app.home.layout=grid`，列数 `app.home.columns=2`
 - 卡片：42×42 圆角图标盒（doodle 24px，底色 = 分类色 16% alpha）+ 标题（2 行内）+ 副标题
 - 角标优先级：`tool.badge` > `featured`→推荐 > `offline`→离线
 - 搜索：匹配 title / subtitle / id
@@ -1065,6 +1079,33 @@ publish（stable 不动） → 只发 canary → stable 配置里填 canaryUrl +
 
 ---
 
+### 5.15 视图偏好（网格 ⇄ 列表）
+
+「最近」和「小工具」两页共享一个显示格式开关，存在 `ViewPrefs`（`app/lib/data/view_prefs.dart`）。
+
+| 层 | 来源 | 作用 |
+|---|---|---|
+| 默认值 | 配置 `app.home.layout` | 用户没手动切过时跟随配置 |
+| 用户选择 | 本机 `SharedPreferences`（`km.view.mode`） | 手动切过一次后以用户为准，配置再变也不覆盖 |
+
+两页各自的表现：
+
+| 页面 | 卡片（grid） | 列表（list） |
+|---|---|---|
+| 小工具 | 2 列卡片（`app.home.columns`） | 每行一个：图标 + 标题 + 副标题 + 角标 |
+| 最近 | 时间线按组排 2 列卡片（图标 / 标题 / 摘要 / 时间） | 时间线按组排紧凑行（图标 + 标题 + 摘要 + 右侧时间） |
+
+「最近」页的**续接卡**和**常用**两种排版下都一样 —— 它们本来就只有一张卡和一行小图，没有「列表 vs 卡片」之分。
+
+#### 实现要点
+
+- `ViewPrefs extends ChangeNotifier`，`RootShell` 用 `Listenable.merge([configStore, viewPrefs])` 一起听（两个开关都要能触发重建）。
+- 配置到达时用 `setConfigDefault()` 喂默认值 —— ⚠️ **不能直接在 `build` 里调**（它会 `notifyListeners`，在 build 期间通知 = 「setState during build」）。要用 `addPostFrameCallback` 丢到下一帧。
+- `setMode()` 跟**当前生效值**比而不是跟用户上次选择比 —— 没手动选过时生效值 = 配置默认值，此时 `setMode(默认值)` 应该是空操作。
+- 单元测试：`app/test/view_prefs_test.dart`（8 个用例）。
+
+---
+
 ## §6 设计决策
 
 ### D1 🔴 换 origin = 丢数据
@@ -1147,6 +1188,17 @@ full / auto / minimal / immersive / none。immersive 必须配顶部热区下滑
 - iOS / macOS 相关的脚本（`setup-ios.sh` / `setup-testflight.sh` / `run-ios-device.sh`）与文档（`docs/TESTFLIGHT.md`）**保留但标注暂缓** —— 不删，是为了将来能直接用。
 
 ---
+### D16 🟡 顶栏右侧只留一个图标：网格 ⇄ 列表
+
+**决定**：最近页和小工具页的顶栏右侧**各只保留一个**按钮 = 切换显示格式（卡片 / 列表），两页共用同一个开关。移除原来的齿轮（跳「我的」）和小工具页的刷新按钮。
+
+**理由**：
+1. 底部导航本来就有「我的」—— 顶栏再放一个跳页按钮是重复入口。
+2. 一堆图标里混着「跳页」和「刷新」两种语义，用户点之前得先猜 —— 这就是「功能混乱」的来源。
+3. 显示格式是**排版偏好**，天然属于「同一份数据、同一套偏好」，不该分成两处设置。
+4. 「刷新远端配置」下沉到「我的」页（那里本来就有），不丢功能。
+
+**代价**：想刷新配置要多点一次（去「我的」）。可接受 —— 配置启动时本来就静默刷新，手动刷新是低频动作。
 
 ## §7 视觉规范
 
@@ -1194,17 +1246,17 @@ Flutter 侧：小工具页列数 `app.home.columns`（默认 2，clamp 1~3）。
 
 ## §8 迭代路线
 
-### 8.0 当前进度（2026-11-21）
+### 8.0 当前进度（2026-11-23）
 
 | 里程碑 | 状态 | 已完成 | 待做 |
 |---|---|---|---|
-| **M1 骨架** | ✅ | Flutter 工程 + 配置加载器 + 最近页（首屏）+ 小工具页 + 我的页 + WebView 容器（minimal/full/auto）+ 返回键 + 品牌资产（图标/分类/工具名/doodle）+ **App 正式名 `kmlab Toolbox`** + 单元测试（**138 个用例**） | ⏸ iOS / macOS 正式签名出包 —— **暂缓**（D15，当前只做 Android） |
-| **M2 体验** | ✅ | chrome 四档 ✅（**minimal / auto / immersive / full 全部实跑验证**，含 immersive 顶部热区边缘下滑 + auto 档滚动淡出 + 停手 1.5s 自动收起） + 续接卡摘要 ✅ + ⋯ 溢出菜单（12 动作分组）✅ + 下拉刷新 ✅ + 加载进度 ✅ + 失败兜底页 ✅ + 导出分享面板 ✅ + **App 级数据管理（导出全部/导入/清除全部）✅** + 原生 Toast 通道 ✅ + 端上 UI 冒烟测试通道 ✅ + **离线 L1 Service Worker ✅（Android 已部署并实测断网秒开；macOS 实测 SW 也可用 ✅；**iOS 需「已验证的 app-bound domain」，无 Apple 账号时如实显示「此平台不支持」**，见 §5.9 与 BUG #27）** + **拦截层（下载 / 外链）✅** + **分享长图 ✅** | 长按抽屉 · 搜索 UI 打磨 |
+| **M1 骨架** | ✅ | Flutter 工程 + 配置加载器 + 最近页（首屏）+ 小工具页 + 我的页 + WebView 容器（minimal/full/auto）+ 返回键 + 品牌资产（图标/分类/工具名/doodle）+ **App 正式名 `kmlab Toolbox`** + 单元测试（**146 个用例**） | ⏸ iOS / macOS 正式签名出包 —— **暂缓**（D15，当前只做 Android） |
+| **M2 体验** | ✅ | **视图偏好（网格 ⇄ 列表）✅（最近页 + 小工具页顶栏右侧各只留一个图标，共用一个开关，见 D16 / §5.15）** + chrome 四档 ✅（**minimal / auto / immersive / full 全部实跑验证**，含 immersive 顶部热区边缘下滑 + auto 档滚动淡出 + 停手 1.5s 自动收起） + 续接卡摘要 ✅ + ⋯ 溢出菜单（12 动作分组）✅ + 下拉刷新 ✅ + 加载进度 ✅ + 失败兜底页 ✅ + 导出分享面板 ✅ + **App 级数据管理（导出全部/导入/清除全部）✅** + 原生 Toast 通道 ✅ + 端上 UI 冒烟测试通道 ✅ + **离线 L1 Service Worker ✅（Android 已部署并实测断网秒开；macOS 实测 SW 也可用 ✅；**iOS 需「已验证的 app-bound domain」，无 Apple 账号时如实显示「此平台不支持」**，见 §5.9 与 BUG #27）** + **拦截层（下载 / 外链）✅** + **分享长图 ✅** | 长按抽屉 · 搜索 UI 打磨 |
 | **M3 生态** | 🔄 | `resume.mode: storage` 已跑通 ✅ + **脑力慢养续接卡 ✅（`lastGame` 算法，实测 `bf_progress`）** | Bridge 落地（title/toast/share/export/openTool 已写，待 H5 侧接入）· Bridge 上报通道（跨仓库，需 h5_tools 侧配合）· 常用置顶持久化 ✅（本地） |
 | **M4 运营** | 🔄 | 远端配置链路 ✅ + 内容嗅探 ✅ + 新鲜度保护 ✅ + **签名校验 ✅（HMAC-SHA256，真做）** + **配置 diff 提示 ✅（热更可审）** + **灰度发布 ✅（两份 URL + 设备稳定分桶，见 §5.13）** + 三份副本同步脚本 ✅ + 远端自查脚本 ✅ | 工具上下架与推荐位 |
 | **M5 扩展** | 🔄 | 深色模式 ✅ + **macOS 平台接入 ✅（出包 + 跑通 + 沙箱 entitlement）** + **分享长图 ✅（纸片风海报，见 §5.14）** | **仅剩**：TestFlight 上传 —— ⏸ **暂缓**（不开通 Apple 账号，D15；步骤已写好在 `docs/TESTFLIGHT.md`，将来账号齐了直接照做）<br>~~多语言 / 桌面 Widget / 平板手表适配~~ —— 用户明确「只要兼容手机」 |
 
-#### 实跑中修掉的 27 个真 BUG
+#### 实跑中修掉的 28 个真 BUG
 
 | # | 现象 | 根因 | 修法 |
 |---|---|---|---|
@@ -1237,6 +1289,8 @@ Flutter 侧：小工具页列数 `app.home.columns`（默认 2，clamp 1~3）。
 | 27 | 🔴 **iOS 上整个 JS Bridge 全废** —— `window.KM` 注不进去、`localStorage` 快照读不回来（续接卡永远「还没开始」）、下拉刷新 / 下载拦截 / 边缘下滑全失效、JS channel 是 `undefined` | **BUG #26 的修法引入了新问题**：在 `Info.plist` 里声明 `WKAppBoundDomains` 会让**所有** WKWebView 进入严格模式（Apple 的 App-Bound Domains 规则），拒绝 JS 注入 / 用户脚本 / message handler —— 除非域名**已被 Apple 验证**。kmlab.tech 没走 Associated Domains + `apple-app-site-association` 验证（需要付费 Apple 账号与真机签名，本机 `security find-identity` = 0 个证书）⇒ WebKit 报 `Unable to execute JavaScript in a frame that is not in an app-bound domain` | **删掉 `WKAppBoundDomains`**（Info.plist 里留注释说明为什么、以及将来怎么开）；`_injectBridge()` 的 try/catch 不再静默吞异常（改成逐步 `debugPrint` + 每段独立 try/catch + 超时）；新增 `decodeJsValue()` 修 Android 的双重 JSON 编码（否则 `state.startsWith('ready')` 永远 false）；新增 `swSupportScript` 探测 `navigator.serviceWorker` 到底存不存在，把「不支持」与「注册失败」分开；UI 如实显示「此平台不支持（需域名验证）」；**实测：Android / iOS / macOS 三端冒烟测试各 6 个用例全过**（Android 2:00 / iOS 1:28 / macOS 1:32） |
 
 > ⚠️ 其余 `paperBorderRadius` 调用点（Container / BoxDecoration / RoundedRectangleBorder）**都支持椭圆角**，不用改 —— 只有 `OutlineInputBorder` 是雷。
+
+| 28 | **Android 桌面图标一直是 Flutter 默认的蓝色 logo**（不是 kmlab 的 favicon） | `scripts/generate-icons.sh` 写好了但**从没在 Android 侧成功跑过** —— `res/` 里只剩 `flutter create` 生成的模板 PNG（`eb05e57` 初始提交带进来的），`mipmap-anydpi-v26/ic_launcher.xml` / `ic_launcher_foreground.png` / `ic_launcher_monochrome.png` / `values/colors.xml` **一个都没有**。而且 API 26+ 用的是自适应图标（`mipmap-anydpi-v26/ic_launcher.xml`），**只改 `mipmap-*/ic_launcher.png` 也没用** | 跑 `scripts/generate-icons.sh` 生成三层资源（传统 / 自适应前景 / Android 13 单色）+ `mipmap-anydpi-v26/ic_launcher.xml` + `values/colors.xml`；**单色层不能用 `icon.svg` 抠 alpha**（牛皮纸底不透明 → 抠出来是一整块黑方块），单独画 `assets/icon-monochrome.svg`（纯黑描边）；实机确认桌面已是「牛皮纸底 + 红 b + 蓝三线」 |
 
 ### 8.1 跨仓库配合任务（与 h5_tools / kmlab_site）
 
@@ -1321,7 +1375,7 @@ app/
 
 ---
 
-## §9 拍板结果（16 条全部已定）
+## §9 拍板结果（17 条全部已定）
 
 > 无待拍板项 · 可直接排期开发
 
@@ -1343,6 +1397,7 @@ app/
 | 14 | ⋯ 菜单放「清除数据」？ | ✅ **放** —— 二次确认 + 提示先导出 + 给「先导出备份」按钮 | ⋯ 菜单 |
 | 15 | 导出数据落地形式？ | ✅ **`.json` 文件 + 系统分享面板**，剪贴板仅兜底 | 导出/导入模块 |
 | 16 | iOS / macOS 要不要一起发？ | ⏸ **暂缓，当前只做 Android** —— 暂不开通 Apple 开发者账号（$99/年）；iOS / macOS 代码保留但不发布、不投入（D15） | 迭代范围 |
+| 17 | 顶栏右侧那个图标该干什么？ | ✅ **切显示格式（网格 ⇄ 列表）** —— 最近页与小工具页共用一个开关；原来的齿轮（跳「我的」）和小工具页的刷新按钮都撤掉（D16） | 顶栏语义 |
 
 ---
 

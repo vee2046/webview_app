@@ -62,6 +62,8 @@ const Map<String, String> _ui = {
   'search': '<circle cx="10.6" cy="10.6" r="6.6"/><path d="m15.4 15.4 4.4 4.4"/>',
   'grid':
       '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
+  'list':
+      '<path d="M4 6.5h16M4 12h16M4 17.5h16"/>',
   'clock': '<circle cx="12" cy="12" r="8.6"/><path d="M12 7.2V12l3.2 2.2"/>',
   'history': '<circle cx="12" cy="12" r="8.6"/><path d="M12 7v5.4"/><path d="M3.6 9.6A8.6 8.6 0 0 1 12 3.4"/>',
   'cup':

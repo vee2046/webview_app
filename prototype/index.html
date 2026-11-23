@@ -1615,6 +1615,20 @@ footer .wave{font-family:'Caveat',cursive;font-size:1.2rem;color:var(--crayon-am
     <div class="cols2">
       
     <div class="panelbox amberbox">
+      <h3>🟡 D16 · 顶栏右侧只留一个图标：网格 ⇄ 列表</h3>
+      <p style="font-size:.86rem;margin:0 0 8px">
+        「最近」页和「小工具」页的顶栏右侧<b>各只保留一个</b>按钮 —— 切换这两页数据的显示格式（卡片 / 列表）。两页共用同一个开关。
+      </p>
+      <ul>
+        <li><b>去掉齿轮</b>：底部导航本来就有「我的」，顶栏再放一个跳页按钮 = 重复入口；而且一堆图标里混着「跳页」和「刷新」两种语义，用户点之前得先猜 —— 这就是「功能混乱」的来源。</li>
+        <li><b>「刷新远端配置」下沉</b>到「我的」页（那里本来就有刷新按钮）。配置启动时本来就静默刷新，手动刷新是低频动作。</li>
+        <li><b>两页共用一个开关</b>（<code>ViewPrefs</code>）—— 同一份数据、同一套排版偏好，不给用户「两处设置」的机会。</li>
+        <li><b>层级</b>：配置 <code>app.home.layout</code> 是<b>默认值</b>；用户手动切过一次后以用户为准并持久化到本机（配置再变也不覆盖）。</li>
+        <li><b>表现</b>：小工具页 = 2 列卡片 ⇄ 每行一个；最近页 = 时间线 2 列卡片 ⇄ 时间线紧凑行（续接卡和常用两种排版都一样）。</li>
+      </ul>
+    </div>
+
+    <div class="panelbox amberbox">
       <h3>🟡 D15 · 当前只做 Android，iOS / macOS 暂缓</h3>
       <p style="font-size:.86rem;margin:0 0 8px">
         暂不开通 Apple 开发者账号（$99/年），迭代范围收窄到 <b>Android</b>；iOS / macOS 的代码与工程<b>保留</b>（已跑通、已出包），但不签名分发、不上架、不投入。
@@ -1854,6 +1868,7 @@ footer .wave{font-family:'Caveat',cursive;font-size:1.2rem;color:var(--crayon-am
         <tr><td>14</td><td>⋯ 菜单放「清除数据」？</td><td><span class="tag-ok">✅ 放</span> —— 二次确认 + 提示先导出 + 给「先导出备份」按钮</td><td>⋯ 菜单</td></tr>
         <tr><td>15</td><td>导出数据落地形式？</td><td><span class="tag-ok">✅ .json 文件 + 系统分享面板</span>，剪贴板仅兜底</td><td>导出/导入模块</td></tr>
         <tr><td>16</td><td>iOS / macOS 要不要一起发？</td><td><span class="tag-warn">⏸ 暂缓，当前只做 Android</span> —— 暂不开通 Apple 开发者账号（$99/年）；iOS / macOS 代码保留但不发布、不投入</td><td>迭代范围（见 D15）</td></tr>
+        <tr><td>17</td><td>顶栏右侧那个图标该干什么？</td><td><span class="tag-ok">✅ 切显示格式</span> —— 网格 ⇄ 列表，<b>最近页与小工具页共用</b>；原来的齿轮（跳「我的」）和小工具页的刷新按钮都撤掉</td><td>顶栏语义（见 D16）</td></tr>
       </tbody>
     </table>
 

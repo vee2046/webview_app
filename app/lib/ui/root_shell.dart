@@ -10,6 +10,7 @@ import '../config/config_store.dart';
 import '../data/data_transfer.dart';
 import '../config/config_diff.dart';
 import '../data/usage_store.dart';
+import '../data/view_prefs.dart';
 import '../icons/doodle_icons.dart';
 import '../model/app_config.dart';
 import '../theme/paper_theme.dart';
@@ -24,12 +25,14 @@ class RootShell extends StatefulWidget {
     super.key,
     required this.configStore,
     required this.usage,
+    required this.viewPrefs,
     required this.darkMode,
     required this.onDarkModeChanged,
   });
 
   final ConfigStore configStore;
   final UsageStore usage;
+  final ViewPrefs viewPrefs;
   final bool darkMode;
   final void Function(bool dark) onDarkModeChanged;
 
@@ -40,9 +43,16 @@ class RootShell extends StatefulWidget {
 class _RootShellState extends State<RootShell> {
   late int _index;
 
+  /// 已经喂给 [ViewPrefs] 的配置默认值（避免重复喂）。
+  String? _appliedLayout;
+
+  /// 配置和视图偏好都要能触发重建 —— 合成一个 Listenable 一起听。
+  late final Listenable _listenable;
+
   @override
   void initState() {
     super.initState();
+    _listenable = Listenable.merge([widget.configStore, widget.viewPrefs]);
     final nav = widget.configStore.config?.app.bottomNav;
     final recentId = widget.configStore.config?.app.recent.isDefaultTab == true
         ? 'recent'
@@ -141,7 +151,7 @@ class _RootShellState extends State<RootShell> {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: widget.configStore,
+      listenable: _listenable,
       builder: (context, _) {
         final config = widget.configStore.config;
         if (config == null) {
@@ -151,6 +161,20 @@ class _RootShellState extends State<RootShell> {
           );
         }
         final nav = config.app.bottomNav;
+
+        // 配置里的 `app.home.layout` 是**默认值**；
+        // 用户在顶栏手动切过就以用户的选择为准。
+        // ⚠️ 不能在这里直接 setConfigDefault —— 它会 notifyListeners，
+        //    在 build 期间通知会触发「setState during build」。
+        //    所以丢到下一帧。
+        final layout = config.app.home.layout;
+        if (layout != _appliedLayout) {
+          _appliedLayout = layout;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            widget.viewPrefs.setConfigDefault(ViewMode.fromName(layout));
+          });
+        }
 
         return Scaffold(
           backgroundColor: context.paper.paper,
@@ -162,16 +186,15 @@ class _RootShellState extends State<RootShell> {
                 RecentPage(
                   config: config,
                   usage: widget.usage,
+                  viewPrefs: widget.viewPrefs,
                   onOpenTool: _openTool,
-                  onOpenSettings: () => _selectTab(config, 'me'),
                   onOpenTools: () => _selectTab(config, 'tools'),
                 ),
                 ToolsPage(
                   config: config,
                   usage: widget.usage,
+                  viewPrefs: widget.viewPrefs,
                   onOpenTool: _openTool,
-                  onOpenSettings: () => _selectTab(config, 'me'),
-                  onRefreshConfig: () => _refreshConfig(config),
                 ),
                 SettingsPage(
                   config: config,

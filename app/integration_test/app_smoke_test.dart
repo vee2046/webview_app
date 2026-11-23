@@ -17,6 +17,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
 import 'package:kmlab_toolbox/main.dart' as app;
+import 'package:kmlab_toolbox/ui/recent_page.dart';
+import 'package:kmlab_toolbox/ui/tools_page.dart';
+import 'package:kmlab_toolbox/ui/widgets/paper_widgets.dart';
 
 /// 被测 App 已经启动过没有。
 ///
@@ -199,6 +202,65 @@ void main() {
       );
     }
     await shot('05_sw');
+  });
+
+  testWidgets('⑦ 顶栏右侧 = 切显示格式（最近页与小工具页共用一个开关）',
+      (WidgetTester tester) async {
+    await startApp(tester);
+    await tester.tap(find.text('小工具').last);
+    await tester.pumpAndSettle(const Duration(seconds: 2));
+
+    // 顶栏右侧**只有**一个按钮（原来有「刷新配置」+「齿轮跳我的」两个）
+    final toolsButtons = find.descendant(
+      of: find.byType(ToolsPage),
+      matching: find.byType(PaperIconButton),
+    );
+    expect(
+      toolsButtons,
+      findsOneWidget,
+      reason: '小工具页顶栏右侧现在只保留一个按钮（网格 ⇄ 列表）',
+    );
+
+    // ⚠️ IndexedStack 里三个页面都活着（只是不绘制），
+    //    所以 tooltip 一定要**按页面 scope** 去找，否则两个页面各有一个 → tap 会报「找到多个」。
+    Finder listToggleIn(Type page) => find.descendant(
+          of: find.byType(page),
+          matching: find.byTooltip('切换成列表'),
+        );
+
+    bool inListMode() =>
+        find
+            .descendant(
+              of: find.byType(ToolsPage),
+              matching: find.byTooltip('切换成卡片'),
+            )
+            .evaluate()
+            .isNotEmpty;
+
+    final before = inListMode();
+    await tester.tap(before
+        ? find.descendant(
+            of: find.byType(ToolsPage),
+            matching: find.byTooltip('切换成卡片'),
+          )
+        : listToggleIn(ToolsPage));
+    await tester.pumpAndSettle(const Duration(seconds: 1));
+    expect(inListMode(), !before, reason: '点一下应该切到另一种排版');
+
+    // 回到最近页 —— 同一个开关，状态跟着走
+    await tester.tap(find.text('最近').last);
+    await tester.pumpAndSettle(const Duration(seconds: 1));
+    expect(
+      find
+          .descendant(
+            of: find.byType(RecentPage),
+            matching: find.byTooltip('切换成卡片'),
+          )
+          .evaluate()
+          .isNotEmpty,
+      !before,
+      reason: '最近页和小工具页共用一个视图开关',
+    );
   });
 
   testWidgets('⑥ JS Bridge 注入成功（window.KM 存在）',

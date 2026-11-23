@@ -12,27 +12,29 @@ import 'package:flutter/material.dart';
 
 import '../data/resume_reader.dart';
 import '../data/usage_store.dart';
+import '../data/view_prefs.dart';
 import '../icons/doodle_icons.dart';
 import '../model/app_config.dart';
 import '../theme/paper_theme.dart';
 import 'widgets/paper_widgets.dart';
+import 'widgets/view_toggle.dart';
 
 class RecentPage extends StatelessWidget {
   const RecentPage({
     super.key,
     required this.config,
     required this.usage,
+    required this.viewPrefs,
     this.resumeReader,
     this.onOpenTool,
-    this.onOpenSettings,
     this.onOpenTools,
   });
 
   final AppConfig config;
   final UsageStore usage;
+  final ViewPrefs viewPrefs;
   final ResumeReader? resumeReader;
   final void Function(ToolConfig tool)? onOpenTool;
-  final VoidCallback? onOpenSettings;
   final VoidCallback? onOpenTools;
 
   @override
@@ -77,7 +79,8 @@ class RecentPage extends StatelessWidget {
         _RecentAppBar(
           app: config.app,
           showGreeting: recent.showGreeting,
-          onOpenSettings: onOpenSettings,
+          mode: viewPrefs.mode,
+          onToggleView: () => viewPrefs.toggle(),
         ),
         if (recent.showTodayCount) ...[
           const SizedBox(height: 6),
@@ -115,26 +118,69 @@ class RecentPage extends StatelessWidget {
             const SizedBox(height: 18),
             for (final entry in timeline.entries)
               if (entry.value.isNotEmpty) ...[
-              SectionLabel(entry.key),
-              for (final record in entry.value.take(recent.maxTimelineItems))
-                _TimelineRow(
-                  tool: config.toolById(record.toolId),
-                  color: tabColorOf(
+                SectionLabel(entry.key),
+                if (viewPrefs.isGrid)
+                  _timelineGrid(
                     config,
-                    config.toolById(record.toolId)?.tab,
+                    entry.value.take(recent.maxTimelineItems).toList(),
+                    onOpenTool,
                     context.paper.crayonAmber,
-                  ),
-                  record: record,
-                  onTap: onOpenTool == null
-                      ? null
-                      : () {
-                          final t = config.toolById(record.toolId);
-                          if (t != null) onOpenTool!(t);
-                        },
-                ),
-            ],
+                  )
+                else
+                  for (final record in entry.value.take(recent.maxTimelineItems))
+                    _TimelineRow(
+                      tool: config.toolById(record.toolId),
+                      color: tabColorOf(
+                        config,
+                        config.toolById(record.toolId)?.tab,
+                        context.paper.crayonAmber,
+                      ),
+                      record: record,
+                      onTap: onOpenTool == null
+                          ? null
+                          : () {
+                              final t = config.toolById(record.toolId);
+                              if (t != null) onOpenTool!(t);
+                            },
+                    ),
+              ],
           ],
         ],
+      ],
+    );
+  }
+
+  /// 时间线在「卡片」排版下的样子 —— 每组两张一行。
+  Widget _timelineGrid(
+    AppConfig config,
+    List<UsageRecord> records,
+    void Function(ToolConfig tool)? onOpenTool,
+    Color fallback,
+  ) {
+    return GridView.count(
+      crossAxisCount: 2,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      mainAxisSpacing: 10,
+      crossAxisSpacing: 10,
+      childAspectRatio: 1.12,
+      children: [
+        for (final record in records)
+          _TimelineCard(
+            tool: config.toolById(record.toolId),
+            color: tabColorOf(
+              config,
+              config.toolById(record.toolId)?.tab,
+              fallback,
+            ),
+            record: record,
+            onTap: onOpenTool == null
+                ? null
+                : () {
+                    final t = config.toolById(record.toolId);
+                    if (t != null) onOpenTool(t);
+                  },
+          ),
       ],
     );
   }
@@ -146,12 +192,14 @@ class _RecentAppBar extends StatelessWidget {
   const _RecentAppBar({
     required this.app,
     required this.showGreeting,
-    this.onOpenSettings,
+    required this.mode,
+    required this.onToggleView,
   });
 
   final AppMeta app;
   final bool showGreeting;
-  final VoidCallback? onOpenSettings;
+  final ViewMode mode;
+  final VoidCallback onToggleView;
 
   String get _greeting {
     final h = DateTime.now().hour;
@@ -190,12 +238,9 @@ class _RecentAppBar extends StatelessWidget {
             ],
           ),
         ),
-        if (onOpenSettings != null)
-          PaperIconButton(
-            icon: 'settings',
-            onPressed: onOpenSettings,
-            tooltip: '设置',
-          ),
+        // 顶栏右侧**只有一个**图标：网格 ⇄ 列表。
+        // （原来这里是「设置」跳到「我的」页 —— 底部导航本来就有「我的」，功能重复。）
+        ViewToggleButton(mode: mode, onToggle: onToggleView),
       ],
     );
   }
@@ -543,4 +588,80 @@ Color? parseHexColor(String? hex) {
   final v = int.tryParse(s, radix: 16);
   if (v == null) return null;
   return Color(0xFF000000 | v);
+}
+
+
+/// 时间线在「卡片」排版下的样子（[\_TimelineRow] 的竖版）。
+class _TimelineCard extends StatelessWidget {
+  const _TimelineCard({
+    required this.tool,
+    required this.color,
+    required this.record,
+    this.onTap,
+  });
+
+  final ToolConfig? tool;
+  final Color color;
+  final UsageRecord record;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.paper;
+    if (tool == null) return const SizedBox.shrink();
+    final hh = record.at.hour.toString().padLeft(2, '0');
+    final mm = record.at.minute.toString().padLeft(2, '0');
+
+    return PaperCard(
+      onTap: onTap,
+      tiltSeed: '${tool!.id}-${record.at.millisecondsSinceEpoch}',
+      padding: const EdgeInsets.fromLTRB(10, 10, 10, 9),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.16),
+              borderRadius: BorderRadius.circular(11),
+              border: Border.all(color: p.ink, width: 1.8),
+            ),
+            alignment: Alignment.center,
+            child: DoodleIcon(tool!.icon, size: 19, color: color),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            tool!.title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 13,
+              height: 1.2,
+              color: p.ink,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          if (record.summary != null && record.summary!.isNotEmpty) ...[
+            const SizedBox(height: 2),
+            Text(
+              record.summary!,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 11, color: p.inkSoft),
+            ),
+          ],
+          const SizedBox(height: 4),
+          Text(
+            '$hh:$mm',
+            style: TextStyle(
+              fontSize: 10.5,
+              color: p.inkSoft,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
