@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-24T02:44:15Z",
+  "generatedAt": "2026-11-24T05:24:45Z",
   "app": {
     "id": "kmlab-toolbox",
     "name": "kmlab",
@@ -77,6 +77,7 @@
         "key",
         "note",
         "rocket",
+        "podcast",
         "brain",
         "box"
       ],
@@ -86,7 +87,8 @@
       {
         "id": "all",
         "title": "全部",
-        "icon": "grid"
+        "icon": "grid",
+        "color": null
       },
       {
         "id": "life",
@@ -105,6 +107,12 @@
         "title": "知识索引",
         "icon": "book",
         "color": "#d9534f"
+      },
+      {
+        "id": "entertainment",
+        "title": "娱乐",
+        "icon": "podcast",
+        "color": "#d9a441"
       },
       {
         "id": "misc",
@@ -390,8 +398,8 @@
       "title": "脑力慢养",
       "subtitle": "找一找 · 数口令 · 配一对",
       "icon": "brain",
-      "color": "#8a6fa3",
-      "tab": "misc",
+      "color": "#6f9264",
+      "tab": "life",
       "url": "https://kmlab.tech/h5_tools/mindx/index.html",
       "offline": {
         "enabled": true,
@@ -545,9 +553,9 @@
       "id": "sanhuo",
       "title": "三个火呛手粉丝站",
       "subtitle": "播客「三个火呛手」非官方粉丝站",
-      "icon": "box",
-      "tab": "misc",
-      "color": "#8a6fa3",
+      "icon": "podcast",
+      "tab": "entertainment",
+      "color": "#d9a441",
       "url": "https://kmlab.tech/fan/sanhuo/index.html",
       "offline": {
         "enabled": false
@@ -683,5 +691,5 @@
     "site": "https://kmlab.tech",
     "note": "数据保存在本机浏览器存储，不上传服务器"
   },
-  "signature": "ce57b3fc2e423454c13a9755177c11736f391181e6d610ce1c7daa70b144161b"
+  "signature": "82f99610e5f7cfea7a28452a7e61c9bc416b4b0063ef2464b4a66f8b9d1999fc"
 }

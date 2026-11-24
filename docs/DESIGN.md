@@ -49,7 +49,7 @@
 
 ## §2 范围与边界
 
-### 2.1 收录的 9 个入口
+### 2.1 收录的 9 个入口（+ 5 个分类页签）
 
 | # | 工具名（= `html_files.json` 的 title） | id | 加载方式 | 分类 |
 |---|---|---|---|---|
@@ -452,6 +452,21 @@ config/app.config.json
 | 续接卡 | `showResumeCard` | 「接着干」—— 上次用的工具 + 一句状态摘要 |
 | 常用 | `showPinned` | 手动置顶的工具（⋯ 菜单 →「固定到常用」） |
 | 时间线 | `showTimeline` | 分组：今天 / 昨天 / 本周 / 更早，`maxTimelineItems=30` |
+
+#### 分类与图标怎么跟站点保持一致
+
+站点的分类**不是写死的**，是**关键词规则**驱动的（`kmlab_site/src/lib/project.ts` → `categoryOf()`）：
+`text = title + description`，命中任一 `keywords` 就归入该分类，兜底是最后一条（misc）。
+手绘图标同理（`doodleOf()`，规则在 `site.content.json` 的 `doodles[]`）。
+
+⇒ App 里**不能手工抄**分类和图标 —— 站点一改就对不上。
+新增 `scripts/sync-categories.py`：直接跑站点那套规则，把
+`app.tabs[]` / `tools[].tab` / `tools[].color` / `tools[].icon` 写回 App 配置。
+
+```bash
+python3 scripts/sync-categories.py          # 同步
+python3 scripts/sync-categories.py --check  # 只检查（CI 用）
+```
 
 **首屏为什么是「最近」**：打开 App 的动作 = 「我要接着干活」，不是「我要逛工具目录」。首屏给目录 = 每次都多一次点击。
 
@@ -1421,6 +1436,9 @@ Flutter 侧：小工具页列数 `app.home.columns`（默认 2，clamp 1~3）。
 
 | 32 | 「我的」页顶栏的**刷新按钮显示成网格图标** —— 点它没人知道是刷新 | 图标表 `doodle_icons.dart` 里**根本没有 `refresh` 这个 key**，而 `uiSvg()` 对未知名字会**静默 fallback 成 `grid`**（`?? _ui['box'] ?? _ui['grid']!`）⇒ 一个循环箭头被画成了 4 个方块 | 图标表补上真正的 `refresh`（循环箭头）；**顺带把 fallback 改得更明显**（未知名字回退到 `box` 工具盒而不是网格，否则同一个坑还会再踩） |
 | 33 | 「配置版本」那行显示「**回退中**」+「尚未同步远端」，看着像 App 坏了 | 那其实是**新鲜度保护正常工作**（远端 `generatedAt` 比本地旧 → 拒绝采纳 → 沿用本地配置），但 UI 把它翻译成了「回退中」这种故障口吻；而且 `lastError` 的原文太长（「远端配置比本地配置旧（2026-11-21 03:24:26.000Z < 2026-11-24 01:32:06.000Z），已沿用本地配置」），塞不进一行 | 「我的」页改叫「**配置状态**」，直接把 `lastError` 摆出来（并把 `config_store` 里的消息**改短**，细节留给日志）；新增「**立即更新配置**」独立一行，让用户能主动拉远端 |
+
+| 34 | App 的**分类页签和站点对不上** —— 站点新增了「娱乐」分类，App 还是 4 个；新工具「三个火呛手粉丝站」也只能塞进「其他」 | App 的分类和图标是**手工抄**进 `config/app.config.json` 的，站点一改就对不上（站点的分类是**关键词规则**驱动的） | 新增 `scripts/sync-categories.py` 复刻站点的 `categoryOf()` / `doodleOf()` 规则并写回配置；同步后 `app.tabs[]` = 5 个分类（+ 全部）、新工具归「娱乐」、分类色改用站点的琥珀色 |
+| 35 | 站点把**脑力慢养的图标从「大脑」掉回「纸箱」** | 站点提交 `51055ca`（加 podcast 分类时）把 `doodles[]` 里的 `brain` 规则**替换**掉了而不是追加 —— `DoodleIcon.vue` 里 brain 的画还在，但没有任何规则能命中它 | 站点侧把 `brain` 规则加回去（关键词「脑力 / 益智」）；App 同步后脑力慢养恢复大脑图标 |
 
 ### 8.1 跨仓库配合任务（与 h5_tools / kmlab_site）
 

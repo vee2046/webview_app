@@ -42,6 +42,12 @@ const Map<String, String> _doodles = {
 <circle cx="32" cy="27" r="4.6"/>
 <path d="M20 31 l-8 6 l6 9 M44 31 l8 6 l-6 9"/>
 <path d="M28.5 52 l-1 6 M35.5 52 l1 6"/>''',
+  'podcast': '''
+    <rect x="24" y="9" width="16" height="26" rx="8"/>
+    <path d="M17 27 a15 15 0 0 0 30 0"/>
+    <path d="M32 42 v10 M24 52 h16"/>
+    <path d="M10 24 a8 8 0 0 0 0 12 M54 24 a8 8 0 0 1 0 12"/>
+  ''',
   'brain': '''
 <path d="M17 48 C11 48 8 42 10 37 C5 33 6 25 11 22 C12 15 19 11 25 13 C28 8 36 8 39 13 C45 11 52 15 53 22 C58 25 59 33 54 37 C56 42 53 48 47 48 Z"/>
 <path d="M32 12 V48"/>

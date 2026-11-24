@@ -254,6 +254,7 @@ app/test/
 | **App 内品牌图标** | ✅ **已实现** —— 小工具页顶栏 / 我的页「关于」品牌卡 / 分享长图底部三处都显示 kmlab_site 的 favicon；路径取自配置的 `app.icon`（配置即契约）。⚠️ 修掉了一个「死字段」：之前 `app.icon` 模型读了但 UI 从没用过，而且 `assets/icon.svg` 压根没进 pubspec（App 里一个图标都没有） |
 | **视图偏好（网格 ⇄ 列表）** | ✅ **已实现并实跑验证** —— 最近页 + 小工具页顶栏右侧各只留一个图标，切换两页共用的显示格式（`ViewPrefs`；配置 `app.home.layout` 是默认值，用户手动选过则以用户为准并持久化）。原来顶栏的齿轮（跳「我的」）和小工具页的刷新按钮已移除（见 D16） |
 | **chrome 四档** | ✅ `minimal` / `auto` / `immersive` / `full` 全部实跑验证。**`auto` 档已改为常驻、不再自动隐藏**（D17）—— 很多工具内容不满一屏，顶栏凭空消失会让人以为页面坏了；连带删掉 `autoHideDelayMs` / `isAutoChrome` / `scrollScript` / `onScrollDirection`。`immersive` 档真全屏 + 顶部热区边缘下滑唤出工具栏 + 默认不显示进度条（`keepProgressBarInImmersive`） |
+| **分类/图标与站点同步** | ✅ 新增 `scripts/sync-categories.py` —— 复刻站点 `categoryOf()` / `doodleOf()` 的关键词规则，把 `app.tabs[]` / `tools[].tab` / `tools[].color` / `tools[].icon` 写回 App 配置。站点新增「娱乐」分类和 `podcast` 手绘图标后，App 一条命令就跟上了（以前是手工抄的，一改就对不上） |
 | **「我的」页收敛** | ✅ 从 ~16 行压到 10 行（外观 / 配置 / 数据 / 关于）；去掉只读展示项与一个**假开关**（「全屏时隐藏系统栏」拨了不生效）；新增「**立即更新配置**」入口 + 「**配置状态**」如实显示同步结果 |
 | **版本号自动递增** | ✅ `scripts/build-android.sh` 每次出包前自动 +1（pubspec `version` 与 `app/lib/version.dart` 同步生成）—— 之前版本号卡在 0.1.0+1，手机当成「同一个版本」→ 装完还是旧包，看起来像「改了没效果」。「我的 → 关于」现在显示真实包版本（如 `v0.1.2 (3)`） |
 | **边缘滑动手势（左滑 = 返回）** | ✅ **已实现并实跑验证** —— 小工具/我的页左边缘右滑回最近页；最近页第一次滑提示「再划一次退出」、3 秒内再滑才退出 App；工具详情页（WebView）同样生效。实现上用**祖先 GestureDetector**（参与手势竞技场，避免与分类页签的横向滚动打架），WebView 页则由**页面 JS 监听后回传**（PlatformView 挡得住 Flutter 手势层） |
