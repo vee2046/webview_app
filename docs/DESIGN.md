@@ -1067,6 +1067,14 @@ https://github.com/<owner>/<repo>/releases/latest/download/kmlab-toolbox.apk
 
 发版：`scripts/publish-release.sh`（出包 → 发 Release → 更新清单）；或 push 一个 `v*` tag 让 `.github/workflows/release.yml` 自动做（Actions 自带 `GITHUB_TOKEN`，不需要个人 token）。
 
+**已落地**：`github.com/vee2046/webview_app`（Public），`./scripts/init-github.sh --release` 一条命令搞定。
+
+#### 踩过的三个坑
+
+1. **`softprops/action-gh-release` 的 `name:` 是 Release 标题，不是资产名** —— 不写清楚，资产会叫 `app-release.apk`，清单里的 `releases/latest/download/kmlab-toolbox.apk` 直接 404。
+2. **`files: path|assetname` 的改名语法实测没生效** —— run 显示成功、Release 也建了，但资产列表是空的。改成**上传前先 `mv` 文件名**（`kmlab-toolbox.apk`），最稳。
+3. **GitHub 官方已移除 SSH push-to-create** —— 2021 年就废了，`git push git@github.com:owner/new.git` 只会报 "Repository not found"。建仓库只能走网页或 `gh repo create`（要个人凭据）。
+
 ### 5.11 App 级数据管理（导出全部 / 导入 / 清除全部）
 
 「我的」页的「离线与数据」区块提供**整机级**的三件事，与单工具的 ⋯ 菜单形成两级：
