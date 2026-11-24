@@ -1,1 +1,4 @@
 .DS_Store
+
+# 出包脚本放在项目根目录的 APK（构建产物，不入库）
+/kmlab-toolbox-v*.apk

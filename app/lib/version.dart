@@ -11,10 +11,10 @@
 library;
 
 /// 版本名（用户可见），如 `0.1.1`。
-const String kAppVersion = '0.1.3';
+const String kAppVersion = '0.1.4';
 
 /// 构建号（Android versionCode / iOS CFBundleVersion），每次出包 +1。
-const int kAppBuild = 4;
+const int kAppBuild = 5;
 
 /// 完整标签（用户可见），如 `0.1.1 (2)`。
 const String kAppVersionLabel = '$kAppVersion ($kAppBuild)';

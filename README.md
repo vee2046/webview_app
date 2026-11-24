@@ -46,12 +46,21 @@ flutter drive \
 
 ### 出包产物在哪
 
-| 平台 | 命令 | 产物路径 |
-|---|---|---|
-| Android | `flutter build apk --release` | `app/build/app/outputs/flutter-apk/app-release.apk`（约 55MB，debug key 签名，可直接侧载） |
-| Android（调试） | `flutter build apk --debug` | `app/build/app/outputs/flutter-apk/app-debug.apk` |
-| iOS ⏸ | `flutter build ios --release --no-codesign` | `app/build/ios/iphoneos/Runner.app`（**没有签名**）—— **暂缓发布**（D15） |
-| macOS ⏸ | `flutter build macos --release` | `app/build/macos/Build/Products/Release/kmlab Toolbox.app`（ad-hoc 签名，**只能本机跑**）—— **暂缓发布**（D15） |
+### 📦 产物在哪（两个地方，根目录那份是给你拿的）
+
+| 位置 | 路径 |
+|---|---|
+| **项目根目录（推荐，手机直接装这个）** | `kmlab-toolbox-v<版本号>.apk` —— 出包脚本自动拷贝一份过来，文件名带版本号，一眼能看出是哪个版本；旧的那份会被自动删掉 |
+| Flutter 标准输出目录 | `app/build/app/outputs/flutter-apk/app-release.apk` |
+
+```bash
+./scripts/build-android.sh          # 出包 + 自动拷贝到项目根目录 + 自动递增版本号
+ls -lh kmlab-toolbox-v*.apk         # 看最新那份
+adb install -r kmlab-toolbox-v*.apk # 装到手机
+```
+
+> 根目录的 APK 是构建产物，**不入 git**（已在 `.gitignore` 里）。
+
 
 > ⏸ **iOS / macOS 已暂缓**（暂不开通 Apple 开发者账号，见 D15）。代码与出包能力都保留着，步骤见 [docs/TESTFLIGHT.md](docs/TESTFLIGHT.md)，将来账号齐了直接照做。
 >

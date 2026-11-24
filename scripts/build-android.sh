@@ -107,6 +107,15 @@ SIZE="$(du -h "$APK" | cut -f1 | tr -d ' ')"
 echo
 echo "✅ 产物：$APK（$SIZE）"
 
+# ── 拷一份到项目根目录 ──────────────────────────────────────────
+# build/ 目录里的路径又长又深，容易看错（还可能看到上一次的旧文件）。
+# 所以根目录再放一份**带版本号**的名字，一眼就知道是哪个版本。
+PUB_VERSION="$(grep -E '^version:' "$ROOT/app/pubspec.yaml" | head -1 | sed 's/^version:[[:space:]]*//' | tr -d ' ')"
+ROOT_APK="$ROOT/kmlab-toolbox-v${PUB_VERSION}.apk"
+find "$ROOT" -maxdepth 1 -name 'kmlab-toolbox-v*.apk' ! -name "$(basename "$ROOT_APK")" -delete
+cp "$APK" "$ROOT_APK"
+echo "✅ 项目根目录也放了一份：$(basename "$ROOT_APK")" 
+
 if [ "$INSTALL" -eq 1 ]; then
   echo
   echo "▸ 安装到已连接设备"
