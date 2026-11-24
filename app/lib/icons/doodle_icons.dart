@@ -60,6 +60,8 @@ const Map<String, String> _ui = {
   'settings':
       '<path d="M3.6 7.4h11M18.4 7.4h2M3.6 16.6h2M9.6 16.6h10.8"/><circle cx="16.4" cy="7.4" r="2.2"/><circle cx="7.4" cy="16.6" r="2.2"/>',
   'search': '<circle cx="10.6" cy="10.6" r="6.6"/><path d="m15.4 15.4 4.4 4.4"/>',
+  'refresh':
+      '<path d="M19.4 12a7.4 7.4 0 1 1-2.2-5.2"/><path d="M19.6 4.2v3.6h-3.6"/>',
   'grid':
       '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
   'list':

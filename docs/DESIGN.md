@@ -30,6 +30,7 @@
 - ❌ 改写任何 H5 的业务逻辑
 - ❌ 工具内部的增删改查 UI —— 那是 H5 的事
 - ❌ **iOS / macOS 的发版与维护** —— 暂不开通 Apple 开发者账号（$99/年），代码与工程保留（已跑通、已出包），但**不做签名分发、不上架、不投入**（见 D15）
+- ❌ **顺手开发的新功能 / 新配置项 / 新开关** —— 功能已经稳定，开发过程中**只做修复与收敛**（见 D20）。新增能力必须有明确需求，不在修 bug 的路上夹带
 
 ### 1.4 现状快照（2026-11-23）
 
@@ -48,7 +49,7 @@
 
 ## §2 范围与边界
 
-### 2.1 收录的 8 个入口
+### 2.1 收录的 9 个入口
 
 | # | 工具名（= `html_files.json` 的 title） | id | 加载方式 | 分类 |
 |---|---|---|---|---|
@@ -143,7 +144,7 @@ config/app.config.json
 │  ├─ home          object   小工具页布局（列数 / 搜索 / 角标）
 │  └─ storageManifest string 指向 docs/STORAGE_KEYS.md
 ├─ remote          object   远端配置开关 / 地址 / 超时 / 签名要求
-├─ tools[]         array    8 个工具（id / 标题 / 图标 / 分类 / URL / open / resume）
+├─ tools[]         array    9 个工具（id / 标题 / 图标 / 分类 / URL / open / resume）
 ├─ webview         object   容器行为（UA / 权限 / 缓存 / chrome / 溢出菜单 / 数据传输）
 ├─ bridge          object   window.KM 的白名单与超时
 └─ about           object   版本 / 仓库 / 站点
@@ -376,7 +377,7 @@ config/app.config.json
 | `app.tabs[].id/title/color` | `site.content.json → categories[]` | 生活习惯(绿) / 效率清单(蓝) / 知识索引(红) / 其他(紫) |
 | `app.icons.names` | `DoodleIcon.vue` 的分支名 + `doodleDefault` | checkin / water / money / pill / key / note / rocket / brain + 默认 box |
 | `tools[].icon` | 同上，按标题关键词匹配 | 喝水→water · 打卡→checkin · 月光→money · 药品→pill · 任务→note · AGI→rocket · 脑力→brain · 记账→money |
-| `tools[].title` | `public/data/html_files.json → title` | 8 个工具原名照搬 |
+| `tools[].title` | `public/data/html_files.json → title` | 9 个工具原名照搬 |
 | `tools[].tab` | 站点的分类关键词规则 | 同上 4 个分类 |
 | 底部导航第二项 | `site.content.json → projects.navLabel` | `小工具` |
 | 未纳入 App | `html_files.json` 的「网页自动登录插件」 | Chrome 扩展，移动端无法承载 → 不进 App |
@@ -643,7 +644,7 @@ App 一旦接管 `goBack()`，就会和 H5 自己的路由形成**两套历史�
 
 **全局默认**：`webview.routeBackEnabledDefault=false` / `webview.backFallbackDefault=home`。
 
-**脑力慢养也不开** —— 它虽是 hash 路由 SPA（`#/game/A`~`E`、`#/records`…），但页内本就有「回到首页」按钮，不需要 App 帮它退；保持 8 个工具行为一致比给一个特例更值。
+**脑力慢养也不开** —— 它虽是 hash 路由 SPA（`#/game/A`~`E`、`#/records`…），但页内本就有「回到首页」按钮，不需要 App 帮它退；保持 9 个工具行为一致比给一个特例更值。
 
 **代价**：任何多路由的 H5 都无法用系统返回键回退 —— 但这正是「默认关闭」想控制的复杂度；真需要时配置里开一个字段即可。
 
@@ -762,7 +763,7 @@ App 一旦接管 `goBack()`，就会和 H5 自己的路由形成**两套历史�
 
 **「清除数据」的最终形态**（D13）：放在 ⋯ 的「数据」组，但用最高规格防护 —— 二次确认 + 明确写「只清这个工具，不影响其它工具」+ 弹窗里给「先导出备份」按钮 + 危险色 + 独立取消按钮。
 
-> 🔴 实现铁律：**绝不用 `localStorage.clear()`** —— 8 个工具共用同一个 origin（`kmlab.tech`），清一次全没了。只能按 `resume.storageKeys` 逐个 `removeItem`。
+> 🔴 实现铁律：**绝不用 `localStorage.clear()`** —— 9 个工具共用同一个 origin（`kmlab.tech`），清一次全没了。只能按 `resume.storageKeys` 逐个 `removeItem`。
 
 ### 5.8 离线双层：下拉刷新 + Service Worker
 
@@ -1218,7 +1219,7 @@ full / auto / minimal / immersive / none。immersive 必须配顶部热区下滑
 
 ### D10 🟡 返回键默认不接管页面内路由
 
-`routeBackEnabled:false` → 直接回 App 根页面（最近页）；8 个工具**全部**不开（含脑力慢养）。理由与矩阵见 §5.5。
+`routeBackEnabled:false` → 直接回 App 根页面（最近页）；9 个工具**全部**不开（含脑力慢养）。理由与矩阵见 §5.5。
 
 ### D11 🟡 顶栏只留一个 ⋯
 
@@ -1255,6 +1256,25 @@ full / auto / minimal / immersive / none。immersive 必须配顶部热区下滑
 - iOS / macOS 相关的脚本（`setup-ios.sh` / `setup-testflight.sh` / `run-ios-device.sh`）与文档（`docs/TESTFLIGHT.md`）**保留但标注暂缓** —— 不删，是为了将来能直接用。
 
 ---
+### D20 🟡 进入「只做修复」阶段 + 「我的」页收敛
+
+**决定**：
+1. **开发过程中只做修复与收敛**，不顺手加新功能 / 新配置项 / 新开关（§1.3 已写进「不做什么」）。功能已经稳定，路线图不再往前扩。
+2. **「我的」页收敛**：从 ~16 行压到 10 行，4 个区块（外观 / 配置 / 数据 / 关于）。
+
+**收敛掉的都是「低价值或没做完的」**：
+
+| 去掉 | 为什么 |
+|---|---|
+| 首页布局 / 首屏 / 默认 chrome / 返回键行为 | **只读展示**，用户改不了（值全在远端配置里）—— 展示了也没用 |
+| 全屏时隐藏系统栏 | **假开关**：那个 `_Switch` 没接线，改的是配置项，用户拨了不生效 |
+| 离线包 | 只读展示（「N 个工具可离线」） |
+| 生成分享长图 | 功能保留（工具 ⋯ 菜单里有），只是「我的」页这个入口多余 |
+| 来源 + 品牌溯源表（7 行） | 纯开发信息，对用户无用 → 合并成「官方网站」一行 |
+| 「配置版本 → 回退中」 | 改成「**配置状态**」并如实说明；同时补上「**立即更新配置**」入口 |
+
+**留下的都必须是「能真的操作」的**：主题（开关）· 立即更新配置（动作）· 远程配置地址（信息）· 签名校验（开关）· 导出/导入/清除全部（动作）· 品牌卡（信息）。
+
 ### D19 🟢 左边缘右滑 = 返回；最近页要「再划一次退出」
 
 **决定**：三个底部页签（最近 / 小工具 / 我的）+ 工具详情页都支持**左边缘右滑**返回。
@@ -1398,6 +1418,9 @@ Flutter 侧：小工具页列数 `app.home.columns`（默认 2，clamp 1~3）。
 
 | 30 | **通往 AGI 之路的顶栏几秒后凭空消失**，向上滚动才又出现 | `auto` 档的「停手 1.5s 自动收起」逻辑 —— 但**很多工具的内容不满一屏**，顶栏自己藏起来会让人以为页面坏了 | `auto` 档改为**常驻**（D17）：去掉 `AnimatedContainer` 的高度动画、去掉滚动方向监听与自动收起定时器；`autoHideDelayMs` / `isAutoChrome` / `KmBridge.scrollScript` / `WebViewHost.onScrollDirection` 一并删除（不留死代码）；实跑验证：加载完 18 秒顶栏仍在，滚动两屏后仍在 |
 | 31 | 点「井条条」卡片弹「这是另一个 App，会用系统方式打开」 —— **同一个列表里有的进 App、有的跳出去，行为不一致** | 配置里 `open.mode` 有三种取值，`jingtt` 配的是 `external` → `RootShell` 里有个专门的分支弹 `_ExternalToolSheet` | 用户要求「app 类型的工具也直接进配置的 url，不做特例」⇒ **`open.mode` 整个字段删除**（配置 + 模型 + `OpenMode` 枚举 + 分支 + `_ExternalToolSheet`）；所有工具一律在 App 内 WebView 打开配置里的 url；`jingtt` 的 chrome 由 `none` 改 `minimal`；`config_contract_test.dart` 加一条钉死「配置里不许再有 `open.mode`」 |
+
+| 32 | 「我的」页顶栏的**刷新按钮显示成网格图标** —— 点它没人知道是刷新 | 图标表 `doodle_icons.dart` 里**根本没有 `refresh` 这个 key**，而 `uiSvg()` 对未知名字会**静默 fallback 成 `grid`**（`?? _ui['box'] ?? _ui['grid']!`）⇒ 一个循环箭头被画成了 4 个方块 | 图标表补上真正的 `refresh`（循环箭头）；**顺带把 fallback 改得更明显**（未知名字回退到 `box` 工具盒而不是网格，否则同一个坑还会再踩） |
+| 33 | 「配置版本」那行显示「**回退中**」+「尚未同步远端」，看着像 App 坏了 | 那其实是**新鲜度保护正常工作**（远端 `generatedAt` 比本地旧 → 拒绝采纳 → 沿用本地配置），但 UI 把它翻译成了「回退中」这种故障口吻；而且 `lastError` 的原文太长（「远端配置比本地配置旧（2026-11-21 03:24:26.000Z < 2026-11-24 01:32:06.000Z），已沿用本地配置」），塞不进一行 | 「我的」页改叫「**配置状态**」，直接把 `lastError` 摆出来（并把 `config_store` 里的消息**改短**，细节留给日志）；新增「**立即更新配置**」独立一行，让用户能主动拉远端 |
 
 ### 8.1 跨仓库配合任务（与 h5_tools / kmlab_site）
 

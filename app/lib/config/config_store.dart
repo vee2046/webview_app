@@ -164,7 +164,7 @@ class ConfigStore extends ChangeNotifier {
 
     _refreshing = false;
     if (incoming == null) {
-      _lastError = '远端配置不可用，继续使用本地配置';
+      _lastError = '远端配置不可用，已沿用本地';
       notifyListeners();
       return false;
     }
@@ -220,10 +220,13 @@ class ConfigStore extends ChangeNotifier {
 
     final incomingAt = incoming.generatedAt;
     if (incomingAt == null) {
-      return '远端配置缺少 generatedAt（可能是旧版本或手工改动），已沿用本地配置';
+      // ⚠️ 这些消息会**直接显示在「我的 → 配置状态」里**，所以要短。
+      //    细节（两个时间戳是多少）留在 debugPrint 里。
+      return '远端配置缺少版本时间戳，已沿用本地';
     }
     if (incomingAt.isBefore(currentAt)) {
-      return '远端配置比本地配置旧（$incomingAt < $currentAt），已沿用本地配置';
+      debugPrint('[ConfigStore] 远端 generatedAt=\$incomingTs < 本地 \$currentTs');
+      return '远端配置比本地旧，已沿用本地';
     }
     return null;
   }

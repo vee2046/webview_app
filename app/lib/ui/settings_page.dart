@@ -7,15 +7,12 @@ library;
 import 'package:flutter/material.dart';
 
 import '../config/config_diff.dart';
-import '../data/share_image.dart';
 import '../data/usage_store.dart';
 import '../icons/doodle_icons.dart';
 import '../model/app_config.dart';
 import '../version.dart';
 import '../theme/paper_theme.dart';
 import '../util/native_toast.dart';
-import 'share_preview_dialog.dart';
-import 'widgets/share_card.dart';
 import 'widgets/app_logo.dart';
 import 'widgets/paper_widgets.dart';
 
@@ -83,80 +80,11 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   /// 生成分享长图：整个 App 的使用统计做成一张纸片海报。
-  Future<void> _shareReportCard() async {
-    if (!mounted) return;
-    final usage = widget.usage;
-    final recent = usage.recentToolIds.take(5).toList();
-    final today = usage.todayCount;
-    final streak = usage.streakDays;
-    final pinned = usage.pinned;
-
-    // 长图上只列前 2~3 个名字，其余用「等 N 个」收尾 —— 全列出来会把行撑成两行，
-    // 一张海报不该有折行。
-    String joinTitles(List<String> ids, {int max = 3}) {
-      final names = ids
-          .map((id) => widget.config.toolById(id)?.title ?? id)
-          .toList();
-      if (names.isEmpty) return '';
-      if (names.length <= max) return names.join(' · ');
-      return '${names.take(max).join(' · ')} 等 ${names.length} 个';
-    }
-
-    final rows = <ShareRow>[
-      ShareRow(
-        icon: 'clock',
-        label: '今天',
-        value: today > 0 ? '打开了 $today 个工具' : '今天还没打开工具',
-      ),
-      ShareRow(
-        icon: 'history',
-        label: '连续使用',
-        value: streak > 0 ? '$streak 天' : '还没开始',
-      ),
-      ShareRow(
-        icon: 'grid',
-        label: '常用工具',
-        value: pinned.isEmpty ? '还没固定' : joinTitles(pinned),
-      ),
-      if (recent.isNotEmpty)
-        ShareRow(
-          icon: 'book',
-          label: '最近',
-          value: joinTitles(recent),
-        ),
-      ShareRow(
-        icon: 'lock',
-        label: '数据存储',
-        value: '本机 · 与网页版同源',
-      ),
-    ];
-
-    final ok = await showSharePreview(
-      context,
-      fileName: ShareImage.fileName('report', DateTime.now()),
-      text: '我的 kmlab Toolbox 使用报告',
-      hint: '长图里是 App 侧的使用统计（网页内容不会被截图）',
-      cardBuilder: (w) => ShareReportCard(
-        width: w,
-        logoPath: widget.config.app.icon,
-        title: '我的使用报告',
-        subtitle: '${DateTime.now().year} 年 ${DateTime.now().month} 月',
-        iconName: 'box',
-        accent: context.paper.crayonAmber,
-        badge: streak > 0 ? '连续 $streak 天' : null,
-        rows: rows,
-        footerNote: '数据存在这台设备上，与网页版共享同一份存储。'
-            '换机可在「导出全部数据」里备份。',
-      ),
-    );
-    if (!ok && mounted) NativeToast.show(context, '已取消分享');
-  }
 
   @override
   Widget build(BuildContext context) {
     final p = context.paper;
     final app = widget.config.app;
-    final web = widget.config.webview;
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
@@ -205,30 +133,28 @@ class _SettingsPageState extends State<SettingsPage> {
           onTap: () => widget.onDarkModeChanged(!widget.darkMode),
           trailing: _Switch(on: widget.darkMode),
         ),
-        PaperSettingTile(
-          icon: 'grid',
-          title: '首页布局',
-          description: '${app.home.layout == 'grid' ? '卡片网格' : '紧凑列表'} · ${app.home.columns} 列',
-          value: '${app.home.columns} 列',
-        ),
 
         // ── 配置 ──────────────────────────────────────────────
         SectionLabel('配置'),
+        PaperSettingTile(
+          icon: 'info',
+          title: '配置状态',
+          description: _configStatus(),
+          value: 'v${widget.config.schemaVersion}',
+        ),
+        PaperSettingTile(
+          icon: 'refresh',
+          title: '立即更新配置',
+          description: widget.refreshing
+              ? '正在拉取…'
+              : '拉取远端最新配置，有变化会列出来',
+          onTap: widget.refreshing ? null : () => widget.onRefreshConfig?.call(),
+        ),
         PaperSettingTile(
           icon: 'link',
           title: '远程配置地址',
           description: '运行时静默刷新，失败自动回退',
           value: _shortUrl(widget.config.remote.configUrl),
-        ),
-        PaperSettingTile(
-          icon: 'refresh',
-          title: '配置版本',
-          description: widget.lastRemoteAt == null
-              ? '尚未同步远端'
-              : '上次更新 ${_fmt(widget.lastRemoteAt!)}',
-          value: widget.lastError != null
-              ? '回退中'
-              : 'v${widget.config.schemaVersion}',
         ),
         PaperSettingTile(
           icon: 'lock',
@@ -244,43 +170,9 @@ class _SettingsPageState extends State<SettingsPage> {
           onTap: widget.requireSignature ? null : _toggleSignature,
         ),
         if (widget.configDiff.isNotEmpty) _ConfigDiffPanel(diff: widget.configDiff),
-        PaperSettingTile(
-          icon: 'toolbox',
-          title: '首屏',
-          description: '打开 App 先看到哪一页',
-          value: _firstTabLabel(),
-        ),
 
-        // ── 容器 ──────────────────────────────────────────────
-        SectionLabel('容器'),
-        PaperSettingTile(
-          icon: 'fullscreen',
-          title: '默认 chrome',
-          description: '工具容器顶栏的默认档位',
-          value: _chromeLabel(web.chrome.defaultMode),
-        ),
-        PaperSettingTile(
-          icon: 'fullscreen',
-          title: '全屏时隐藏系统栏',
-          description: '沉浸模式连系统状态栏一起藏',
-          value: web.chrome.hideSystemBars ? '已开' : '未开',
-          trailing: _Switch(on: web.chrome.hideSystemBars),
-        ),
-        PaperSettingTile(
-          icon: 'back',
-          title: '返回键行为',
-          description: '默认不接管页面内路由',
-          value: web.routeBackEnabledDefault ? '接管' : '回根页面',
-        ),
-
-        // ── 离线与数据 ────────────────────────────────────────
-        SectionLabel('离线与数据'),
-        PaperSettingTile(
-          icon: 'download',
-          title: '离线包',
-          description: '${widget.config.visibleTools.where((t) => t.offline.enabled).length} 个工具可离线',
-          value: '远端优先',
-        ),
+        // ── 数据 ──────────────────────────────────────────────
+        SectionLabel('数据'),
         PaperSettingTile(
           icon: 'copy',
           title: '导出全部数据',
@@ -299,12 +191,6 @@ class _SettingsPageState extends State<SettingsPage> {
           description: '清空最近记录、置顶与本地快照',
           onTap: () => widget.onClearAll?.call(),
         ),
-        PaperSettingTile(
-          icon: 'image',
-          title: '生成分享长图',
-          description: '把使用统计做成一张纸片海报',
-          onTap: () => _shareReportCard(),
-        ),
 
         // ── 关于 ──────────────────────────────────────────────
         SectionLabel('关于'),
@@ -316,41 +202,29 @@ class _SettingsPageState extends State<SettingsPage> {
         ),
         const SizedBox(height: 10),
         PaperSettingTile(
-          icon: 'star',
-          title: '${app.appName} · v$kAppVersionLabel',
-          description: widget.config.about.note,
+          icon: 'globe',
+          title: '官方网站',
+          description: '名称 / 图标 / 分类复用 ${app.brandSource.entries['site'] ?? 'kmlab_site'}',
           value: widget.config.about.site,
         ),
-        PaperSettingTile(
-          icon: 'info',
-          title: '来源',
-          description: '名称 / 图标 / 分类复用 kmlab_site',
-          value: app.brandSource.entries['site'] ?? 'kmlab_site',
-        ),
-        const SizedBox(height: 10),
-        _BrandSourceTable(entries: app.brandSource.entries),
       ],
     );
   }
 
-  String _firstTabLabel() {
-    final nav = widget.config.app.bottomNav;
-    if (nav.isEmpty) return '最近';
-    for (final item in nav) {
-      if (item.id == 'recent') return item.title;
-    }
-    return nav.first.title;
+  /// 配置状态一句话 —— 如实说，不吓唬人。
+  ///
+  /// ⚠️ 之前这里写的是「回退中」，但那其实是**新鲜度保护正常工作**
+  ///    （远端比本地旧 → 沿用本地配置），不是什么故障。
+  ///    用户看到「回退中」会以为 App 坏了。
+  String _configStatus() {
+    final err = widget.lastError;
+    if (err != null && err.isNotEmpty) return err;
+    if (widget.lastRemoteAt == null) return '尚未成功同步远端，当前用内置配置';
+    return '上次更新 ${_fmt(widget.lastRemoteAt!)}';
   }
 
-  String _chromeLabel(ChromeMode mode) => switch (mode) {
-        ChromeMode.full => '完整',
-        ChromeMode.auto => '自动隐藏',
-        ChromeMode.minimal => '极简',
-        ChromeMode.immersive => '沉浸',
-        ChromeMode.none => '无',
-      };
-
-  static String _shortUrl(String url) {
+  /// 只显示 host + path（不带协议头），免得一行太长。
+  String _shortUrl(String url) {
     final u = Uri.tryParse(url);
     if (u == null) return url;
     return '${u.host}${u.path}';
@@ -464,68 +338,6 @@ class _AboutHeader extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           PaperBadge('v$version', color: p.crayonAmber),
-        ],
-      ),
-    );
-  }
-}
-
-class _BrandSourceTable extends StatelessWidget {
-  const _BrandSourceTable({required this.entries});
-
-  final Map<String, String> entries;
-
-  static const Map<String, String> _labels = {
-    'site': '站点',
-    'siteName': '站点名',
-    'brandSub': '副标题',
-    'pageTitle': '页面标题',
-    'icon': 'App 图标',
-    'doodles': '线稿图标',
-    'categories': '分类',
-  };
-
-  @override
-  Widget build(BuildContext context) {
-    if (entries.isEmpty) return const SizedBox.shrink();
-    final theme = Theme.of(context);
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: theme.dividerColor, width: 1.6),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('品牌溯源', style: theme.textTheme.titleSmall),
-          const SizedBox(height: 8),
-          for (final entry in entries.entries)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 3),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SizedBox(
-                    width: 74,
-                    child: Text(
-                      _labels[entry.key] ?? entry.key,
-                      style: theme.textTheme.bodySmall,
-                    ),
-                  ),
-                  Expanded(
-                    child: Text(
-                      entry.value,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
         ],
       ),
     );

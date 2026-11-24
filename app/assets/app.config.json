@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-24T01:32:06Z",
+  "generatedAt": "2026-11-24T02:44:15Z",
   "app": {
     "id": "kmlab-toolbox",
     "name": "kmlab",
@@ -540,6 +540,47 @@
         },
         "summary": ""
       }
+    },
+    {
+      "id": "sanhuo",
+      "title": "三个火呛手粉丝站",
+      "subtitle": "播客「三个火呛手」非官方粉丝站",
+      "icon": "box",
+      "tab": "misc",
+      "color": "#8a6fa3",
+      "url": "https://kmlab.tech/fan/sanhuo/index.html",
+      "offline": {
+        "enabled": false
+      },
+      "open": {
+        "titleBar": true,
+        "pullToRefresh": true,
+        "chrome": "minimal",
+        "routeBackEnabled": false,
+        "backFallback": "home",
+        "overflowItems": [
+          "reload",
+          "copyLink",
+          "openInBrowser",
+          "share",
+          "fullscreen",
+          "pin",
+          "about",
+          "feedback"
+        ]
+      },
+      "featured": false,
+      "sort": 90,
+      "enabled": true,
+      "resume": {
+        "enabled": false,
+        "mode": "none",
+        "storageKeys": [],
+        "extract": {
+          "kind": "none"
+        },
+        "summary": "还没有访问过"
+      }
     }
   ],
   "webview": {
@@ -642,5 +683,5 @@
     "site": "https://kmlab.tech",
     "note": "数据保存在本机浏览器存储，不上传服务器"
   },
-  "signature": "547fb0f5272fd935059bb6ac0cdba4c4813288c1d9eef06c42eb0bbea090286b"
+  "signature": "ce57b3fc2e423454c13a9755177c11736f391181e6d610ce1c7daa70b144161b"
 }
