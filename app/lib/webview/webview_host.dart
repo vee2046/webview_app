@@ -256,7 +256,8 @@ class WebViewHostState extends State<WebViewHost> {
       // ⚠️ 判断必须用**当前工具**的档位（`tool.open.chrome`），
       // 不能用全局默认 `webview.chrome.default`（恒为 minimal）——
       // 那样 auto 档永远拿不到滚动脚本，顶栏就永远不会淡出（BUG #22）。
-      await _js(KmBridge.edgeSwipeScript(
+      await _js(KmBridge.leftEdgeBackScript(), '左边缘返回监听');
+    await _js(KmBridge.edgeSwipeScript(
         chrome.immersiveTopHotZonePx,
       ), '边缘下滑');
       if (widget.tool.open.pullToRefresh) {

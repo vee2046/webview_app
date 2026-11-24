@@ -1615,6 +1615,18 @@ footer .wave{font-family:'Caveat',cursive;font-size:1.2rem;color:var(--crayon-am
     <div class="cols2">
       
     <div class="panelbox okbox">
+      <h3>🟢 D19 · 左边缘右滑 = 返回；最近页要「再划一次退出」</h3>
+      <p style="font-size:.86rem;margin:0 0 8px">
+        三个底部页签 + 工具详情页都支持<b>左边缘右滑</b>返回。在「最近」页滑第一次只提示「再划一次退出」，3 秒内再滑一次才真的退出 App。
+      </p>
+      <ul>
+        <li><b>为什么要二次确认</b>：边缘手势起点就在屏幕边，拿手机时很容易碰到 —— 一滑就退 App 很烦人。</li>
+        <li><b>实现坑 1</b>：不能用 <code>Listener</code>（不参与手势竞技场，会和分类页签的横向滚动打架）→ 用<b>祖先 GestureDetector</b>，页签那一小条区域容器先赢、其余地方我们赢。</li>
+        <li><b>实现坑 2</b>：WebView 是 PlatformView，挡得住 Flutter 手势层 → 工具页靠<b>页面 JS 监听后回传</b>。</li>
+      </ul>
+    </div>
+
+    <div class="panelbox okbox">
       <h3>🟢 D17 · 工具顶栏常驻，不自动隐藏</h3>
       <p style="font-size:.86rem;margin:0 0 8px">
         <code>auto</code> 档不再自动收起顶栏 —— 一旦显示就一直。要沉浸请明说，用 <code>immersive</code> 档（真全屏 + 顶部热区唤出）。
@@ -1895,6 +1907,7 @@ footer .wave{font-family:'Caveat',cursive;font-size:1.2rem;color:var(--crayon-am
         <tr><td>17</td><td>顶栏右侧那个图标该干什么？</td><td><span class="tag-ok">✅ 切显示格式</span> —— 网格 ⇄ 列表，<b>最近页与小工具页共用</b>；原来的齿轮（跳「我的」）和小工具页的刷新按钮都撤掉</td><td>顶栏语义（见 D16）</td></tr>
         <tr><td>18</td><td>工具顶栏要自动隐藏吗？</td><td><span class="tag-ok">✅ 常驻，不隐藏</span> —— 很多工具内容不满一屏，顶栏凭空消失会让人以为页面坏了；要沉浸用 immersive 档</td><td>chrome 档位（见 D17）</td></tr>
         <tr><td>19</td><td>「井条条」这种外部项目的卡片点了怎么办？</td><td><span class="tag-ok">✅ 照样进配置的 url</span> —— 删掉 <code>open.mode</code> 与 external / browser 特例，所有工具一律在 App 内 WebView 打开</td><td>打开方式（见 D18）</td></tr>
+        <tr><td>20</td><td>左边缘右滑手势怎么用？</td><td><span class="tag-ok">✅ = 返回</span> —— 小工具/我的页回最近页；最近页第一次滑提示「再划一次退出」，再滑才退出 App</td><td>导航手势（见 D19）</td></tr>
       </tbody>
     </table>
 

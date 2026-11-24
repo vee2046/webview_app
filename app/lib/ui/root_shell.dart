@@ -3,6 +3,8 @@
 /// 首屏落在「最近」；工具详情用 push 路由，进入后 chrome 由工具自己决定。
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -19,6 +21,7 @@ import 'recent_page.dart';
 import 'settings_page.dart';
 import 'tool_detail_page.dart';
 import 'tools_page.dart';
+import 'widgets/edge_back.dart';
 
 class RootShell extends StatefulWidget {
   const RootShell({
@@ -43,6 +46,13 @@ class RootShell extends StatefulWidget {
 class _RootShellState extends State<RootShell> {
   late int _index;
 
+  /// 「再划一次退出」：第一次边缘滑动后置位，第二次滑动才真的退出。
+  bool _exitArmed = false;
+  Timer? _exitTimer;
+
+  /// 边缘返回手势的提示窗口（秒）。
+  static const int _exitConfirmWindow = 3;
+
   /// 已经喂给 [ViewPrefs] 的配置默认值（避免重复喂）。
   String? _appliedLayout;
 
@@ -50,9 +60,16 @@ class _RootShellState extends State<RootShell> {
   late final Listenable _listenable;
 
   @override
+  void dispose() {
+    _exitTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
   void initState() {
     super.initState();
     _listenable = Listenable.merge([widget.configStore, widget.viewPrefs]);
+    _exitTimer = null;
     final nav = widget.configStore.config?.app.bottomNav;
     final recentId = widget.configStore.config?.app.recent.isDefaultTab == true
         ? 'recent'
@@ -171,7 +188,10 @@ class _RootShellState extends State<RootShell> {
           backgroundColor: context.paper.paper,
           body: SafeArea(
             bottom: false,
-            child: IndexedStack(
+            // 左边缘右滑 = 返回（小工具/我的 → 最近；最近 → 再划一次退出）
+            child: EdgeBackGesture(
+              onBack: () => _handleEdgeBack(config),
+              child: IndexedStack(
               index: _index.clamp(0, nav.isEmpty ? 0 : nav.length - 1),
               children: [
                 RecentPage(
@@ -208,6 +228,7 @@ class _RootShellState extends State<RootShell> {
                 ),
               ],
             ),
+            ),
           ),
           bottomNavigationBar: _PaperNavBar(
             items: nav,
@@ -217,6 +238,37 @@ class _RootShellState extends State<RootShell> {
         );
       },
     );
+  }
+
+  /// 左边缘右滑 = 返回。
+  ///
+  /// - 不在「最近」页 → 切回「最近」页
+  /// - 已在「最近」页 → 第一次提示「再划一次退出」，3 秒内再划一次才退出 App
+  void _handleEdgeBack(AppConfig config) {
+    final nav = config.app.bottomNav;
+    final recentId =
+        config.app.recent.isDefaultTab == true ? 'recent' : 'tools';
+    final recentIndex = _indexOf(nav, recentId);
+
+    if (_index != recentIndex) {
+      setState(() => _index = recentIndex);
+      return;
+    }
+
+    if (_exitArmed) {
+      _exitArmed = false;
+      _exitTimer?.cancel();
+      SystemNavigator.pop();
+      return;
+    }
+
+    _exitArmed = true;
+    _exitTimer?.cancel();
+    _exitTimer = Timer(
+      const Duration(seconds: _exitConfirmWindow),
+      () => _exitArmed = false,
+    );
+    NativeToast.show(context, '再划一次退出');
   }
 
   void _selectTab(AppConfig config, String id) {

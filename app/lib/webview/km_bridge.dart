@@ -106,6 +106,51 @@ class KmBridge {
   /// Android 上 WebView 是 PlatformView，它在原生视图层级里盖住 Flutter 视图，
   /// 叠在它上面的 Flutter 手势层收不到落在 WebView 区域的触摸。
   /// 所以边缘手势只能由页面自己监听，再通过 JS Channel 回传给宿主。
+  /// 左边缘右滑 = 返回（工具页用）。
+  ///
+  /// ⚠️ 为什么不用 Flutter 的手势层：**WebView 是 PlatformView**，
+  ///    在原生视图层级里比 Flutter 树更靠上，落在 WebView 区域的触摸
+  ///    根本到不了 Flutter 的 GestureDetector（见 DESIGN.md §5.3 ②）。
+  ///    所以边缘手势必须由页面自己监听，再通过 JS 通道回传。
+  static String leftEdgeBackScript([double zone = 24]) {
+    return """
+(function () {
+  if (window.__kmLeftEdgeBound) return;
+  window.__kmLeftEdgeBound = true;
+  var zone = $zone;
+  var startX = 0;
+  var tracking = false;
+  function pt(e) {
+    return e.changedTouches && e.changedTouches[0]
+      ? e.changedTouches[0]
+      : (e.touches && e.touches[0]);
+  }
+  function onStart(e) {
+    var t = pt(e);
+    if (!t) return;
+    startX = t.clientX;
+    tracking = startX <= zone;
+  }
+  function onMove(e) {
+    if (!tracking) return;
+    var t = pt(e);
+    if (!t) return;
+    if (t.clientX - startX > 60) {
+      tracking = false;
+      try {
+        window.KmHost.postMessage(JSON.stringify({ action: 'edgeBack' }));
+      } catch (err) {}
+    }
+  }
+  function onEnd() { tracking = false; }
+  document.addEventListener('touchstart', onStart, { passive: true });
+  document.addEventListener('touchmove', onMove, { passive: true });
+  document.addEventListener('touchend', onEnd, { passive: true });
+  document.addEventListener('touchcancel', onEnd, { passive: true });
+})();
+""";
+  }
+
   static String edgeSwipeScript([double zone = 28]) {
     return '''
 (function () {

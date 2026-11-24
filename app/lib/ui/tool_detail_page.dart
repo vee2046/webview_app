@@ -208,6 +208,9 @@ class _ToolDetailPageState extends State<ToolDetailPage>
       case 'openTool':
         final target = widget.config.toolById(msg.id);
         if (target != null) widget.onOpenTool?.call(target);
+      case 'edgeBack':
+        // 左边缘右滑 = 返回 —— 与顶栏的 ← 完全同一条路径
+        _handleBack();
       case 'edgeSwipe':
         // 沉浸式档：页面里检测到「顶部边缘下滑」→ 唤出工具栏。
         if (mounted && widget.tool.open.chrome == ChromeMode.immersive) {
