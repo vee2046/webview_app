@@ -1034,6 +1034,28 @@ flutter test integration_test/app_smoke_test.dart -d emulator-5554
 
 ---
 
+### 5.10.5 自动更新（APK 直链 + App 内下载 + 系统安装引导）
+
+**流程**：启动时静默查清单 → 有新版就主动弹窗 → 用户确认 → App 内下载 APK → 拉起系统安装界面。
+
+| 环节 | 实现 |
+|---|---|
+| 清单 | `https://kmlab.tech/data/update.json`，由 `scripts/publish-update.sh` 生成 |
+| 版本比较 | 远端 `versionCode` > 本机 `kAppBuild`（`version.dart`，跟安装包里的一致） |
+| 拉取失败 | **静默** —— 离线 / 404 / 返回 HTML（SPA 兜底）都当「没有更新」，不打扰用户 |
+| 下载 | Dart 侧用已有的 `http` 依赖流式下载到缓存目录 `updates/`，带进度条 |
+| 安装 | MethodChannel `km/install` → 原生发 `ACTION_VIEW` + `content://` URI（`FileProvider` 授权 + `FLAG_GRANT_READ_URI_PERMISSION`） |
+
+**为什么安装必须走原生** —— `url_launcher` 给不了 `FLAG_GRANT_READ_URI_PERMISSION`，系统安装器读不到 APK 文件。
+
+**权限**：`REQUEST_INSTALL_PACKAGES`（首次安装时系统会问「允许安装未知应用」，这是 Android 的标准拦截，不是 bug）。
+
+**两条入口**：
+- **启动时自动**：远端配置到位后静默检查 → 发现新版主动弹一次（不重复打扰）
+- **手动**：「我的 → 配置 → 检查更新」
+
+**APK 本体不由 App 托管** —— 清单里的 `url` 指向哪里由发布方决定（站点静态目录 / 对象存储 / 网盘直链都行）。App 只负责「查 → 提示 → 装」。
+
 ### 5.11 App 级数据管理（导出全部 / 导入 / 清除全部）
 
 「我的」页的「离线与数据」区块提供**整机级**的三件事，与单工具的 ⋯ 菜单形成两级：

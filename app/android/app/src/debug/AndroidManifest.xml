@@ -4,4 +4,7 @@
          to allow setting breakpoints, to provide hot reload, etc.
     -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- 只在 debug 包里允许明文 HTTP —— 用来本机起服务测「自动更新」流程。
+         release 包不受影响（主 manifest 没有这条）。 -->
+    <application android:usesCleartextTraffic="true" />
 </manifest>

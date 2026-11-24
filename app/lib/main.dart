@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'config/config_loader.dart';
 import 'config/config_store.dart';
+import 'data/update_checker.dart';
 import 'data/usage_store.dart';
 import 'data/view_prefs.dart';
 import 'theme/paper_theme.dart';
@@ -14,6 +15,7 @@ Future<void> main() async {
   final configStore = ConfigStore(loader: ConfigLoader());
   final usage = UsageStore();
   final viewPrefs = ViewPrefs();
+  final updateStore = UpdateStore(UpdateChecker());
 
   await usage.load();
   await viewPrefs.load();
@@ -25,11 +27,16 @@ Future<void> main() async {
     configStore: configStore,
     usage: usage,
     viewPrefs: viewPrefs,
+    updateStore: updateStore,
     initialDark: dark,
   ));
 
   // 首屏已经用内置快照渲染出来了，后台再静默拉远端配置。
-  unawaited(configStore.bootstrap());
+  unawaited(configStore.bootstrap().then((_) async {
+    // 远端配置到位后再查更新 —— 这样 updateUrl 也是最新的那一份。
+    final cfg = configStore.config;
+    if (cfg != null) await updateStore.check(cfg.remote);
+  }));
 }
 
 void unawaited(Future<void> f) {
@@ -42,12 +49,14 @@ class KmlabApp extends StatefulWidget {
     required this.configStore,
     required this.usage,
     required this.viewPrefs,
+    required this.updateStore,
     required this.initialDark,
   });
 
   final ConfigStore configStore;
   final UsageStore usage;
   final ViewPrefs viewPrefs;
+  final UpdateStore updateStore;
   final bool initialDark;
 
   @override
@@ -75,6 +84,7 @@ class _KmlabAppState extends State<KmlabApp> {
         configStore: widget.configStore,
         usage: widget.usage,
         viewPrefs: widget.viewPrefs,
+        updateStore: widget.updateStore,
         darkMode: _dark,
         onDarkModeChanged: _setDark,
       ),

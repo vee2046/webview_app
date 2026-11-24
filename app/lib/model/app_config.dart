@@ -116,6 +116,7 @@ class RemoteConfig {
   const RemoteConfig({
     required this.enabled,
     required this.configUrl,
+    this.updateUrl,
     required this.timeoutMs,
     required this.refreshOnLaunch,
     required this.hotReload,
@@ -126,6 +127,12 @@ class RemoteConfig {
 
   final bool enabled;
   final String configUrl;
+
+  /// 自动更新清单地址（可选）。为空 = 不检查更新。
+  ///
+  /// 清单内容见 `lib/data/update_checker.dart`。
+  final String? updateUrl;
+
   final int timeoutMs;
   final bool refreshOnLaunch;
   final bool hotReload;
@@ -158,6 +165,8 @@ class RemoteConfig {
   factory RemoteConfig.fromJson(Map<String, dynamic> json) => RemoteConfig(
         enabled: json['enabled'] as bool? ?? false,
         configUrl: json['configUrl'] as String? ?? '',
+
+        updateUrl: json['updateUrl'] as String?,
         timeoutMs: (json['timeoutMs'] as num?)?.toInt() ?? 8000,
         refreshOnLaunch: json['refreshOnLaunch'] as bool? ?? false,
         hotReload: json['hotReload'] as bool? ?? false,
@@ -170,6 +179,8 @@ class RemoteConfig {
   Map<String, dynamic> toJson() => {
         'enabled': enabled,
         'configUrl': configUrl,
+
+        'updateUrl': updateUrl,
         'timeoutMs': timeoutMs,
         'refreshOnLaunch': refreshOnLaunch,
         'hotReload': hotReload,

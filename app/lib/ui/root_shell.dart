@@ -11,6 +11,7 @@ import 'package:flutter/services.dart';
 import '../config/config_store.dart';
 import '../data/data_transfer.dart';
 import '../config/config_diff.dart';
+import '../data/update_checker.dart';
 import '../data/usage_store.dart';
 import '../data/view_prefs.dart';
 import '../icons/doodle_icons.dart';
@@ -21,6 +22,7 @@ import 'recent_page.dart';
 import 'settings_page.dart';
 import 'tool_detail_page.dart';
 import 'tools_page.dart';
+import 'update_flow.dart';
 import 'widgets/edge_back.dart';
 
 class RootShell extends StatefulWidget {
@@ -29,6 +31,7 @@ class RootShell extends StatefulWidget {
     required this.configStore,
     required this.usage,
     required this.viewPrefs,
+    required this.updateStore,
     required this.darkMode,
     required this.onDarkModeChanged,
   });
@@ -36,6 +39,7 @@ class RootShell extends StatefulWidget {
   final ConfigStore configStore;
   final UsageStore usage;
   final ViewPrefs viewPrefs;
+  final UpdateStore updateStore;
   final bool darkMode;
   final void Function(bool dark) onDarkModeChanged;
 
@@ -45,6 +49,9 @@ class RootShell extends StatefulWidget {
 
 class _RootShellState extends State<RootShell> {
   late int _index;
+
+  /// 已经提示过「发现新版本」了（避免每次 rebuild 都弹）。
+  bool _updatePrompted = false;
 
   /// 「再划一次退出」：第一次边缘滑动后置位，第二次滑动才真的退出。
   bool _exitArmed = false;
@@ -68,7 +75,11 @@ class _RootShellState extends State<RootShell> {
   @override
   void initState() {
     super.initState();
-    _listenable = Listenable.merge([widget.configStore, widget.viewPrefs]);
+    _listenable = Listenable.merge([
+      widget.configStore,
+      widget.viewPrefs,
+      widget.updateStore,
+    ]);
     _exitTimer = null;
     final nav = widget.configStore.config?.app.bottomNav;
     final recentId = widget.configStore.config?.app.recent.isDefaultTab == true
@@ -170,6 +181,19 @@ class _RootShellState extends State<RootShell> {
         }
         final nav = config.app.bottomNav;
 
+        // ── 自动更新：发现新版就主动问一次 ────────────────────
+        // 静默检查在 main.dart 里做（远端配置到位后才查），
+        // 这里负责「发现了 → 弹窗问用户」。
+        final update = widget.updateStore.available;
+        if (update != null && !_updatePrompted) {
+          _updatePrompted = true;
+          WidgetsBinding.instance.addPostFrameCallback((_) async {
+            if (!mounted) return;
+            final go = await showUpdateFlow(context, update);
+            if (!go) widget.updateStore.dismiss();
+          });
+        }
+
         // 配置里的 `app.home.layout` 是**默认值**；
         // 用户在顶栏手动切过就以用户的选择为准。
         // ⚠️ 不能在这里直接 setConfigDefault —— 它会 notifyListeners，
@@ -220,6 +244,7 @@ class _RootShellState extends State<RootShell> {
                 SettingsPage(
                   config: config,
                   usage: widget.usage,
+                  updateStore: widget.updateStore,
                   darkMode: widget.darkMode,
                   onDarkModeChanged: widget.onDarkModeChanged,
                   refreshing: widget.configStore.refreshing,

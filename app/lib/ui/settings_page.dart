@@ -7,12 +7,14 @@ library;
 import 'package:flutter/material.dart';
 
 import '../config/config_diff.dart';
+import '../data/update_checker.dart';
 import '../data/usage_store.dart';
 import '../icons/doodle_icons.dart';
 import '../model/app_config.dart';
 import '../version.dart';
 import '../theme/paper_theme.dart';
 import '../util/native_toast.dart';
+import 'update_flow.dart';
 import 'widgets/app_logo.dart';
 import 'widgets/paper_widgets.dart';
 
@@ -21,6 +23,7 @@ class SettingsPage extends StatefulWidget {
     super.key,
     required this.config,
     required this.usage,
+    required this.updateStore,
     required this.darkMode,
     required this.onDarkModeChanged,
     this.onRefreshConfig,
@@ -38,6 +41,10 @@ class SettingsPage extends StatefulWidget {
 
   final AppConfig config;
   final UsageStore usage;
+
+  /// 自动更新状态（有新版时那行会亮起来）。
+  final UpdateStore updateStore;
+
   final bool darkMode;
   final ValueChanged<bool> onDarkModeChanged;
   final Future<void> Function()? onRefreshConfig;
@@ -151,6 +158,17 @@ class _SettingsPageState extends State<SettingsPage> {
           onTap: widget.refreshing ? null : () => widget.onRefreshConfig?.call(),
         ),
         PaperSettingTile(
+          icon: 'download',
+          title: '检查更新',
+          description: widget.updateStore.hasUpdate
+              ? '发现新版本 ${widget.updateStore.available!.versionName}'
+              : '当前版本 v$kAppVersionLabel',
+          value: widget.updateStore.hasUpdate
+              ? '可更新'
+              : (widget.updateStore.busy ? '检查中…' : '已是最新'),
+          onTap: () => _checkUpdate(),
+        ),
+        PaperSettingTile(
           icon: 'link',
           title: '远程配置地址',
           description: '运行时静默刷新，失败自动回退',
@@ -209,6 +227,21 @@ class _SettingsPageState extends State<SettingsPage> {
         ),
       ],
     );
+  }
+
+  /// 检查更新 —— 有新版就问用户要不要装。
+  Future<void> _checkUpdate() async {
+    final store = widget.updateStore;
+    await store.check(widget.config.remote, silent: false);
+    if (!mounted) return;
+
+    final info = store.available;
+    if (info == null) {
+      await NativeToast.show(context, '已是最新版本');
+      return;
+    }
+    final go = await showUpdateFlow(context, info);
+    if (!go) store.dismiss();
   }
 
   /// 配置状态一句话 —— 如实说，不吓唬人。

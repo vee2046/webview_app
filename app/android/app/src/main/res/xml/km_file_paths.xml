@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 自动更新：下载好的 APK 放在 App 缓存目录的 updates/ 子树里，
+     安装时用 FileProvider 授权给系统安装器读取。 -->
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <cache-path name="updates" path="updates/" />
+</paths>
