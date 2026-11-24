@@ -35,8 +35,11 @@ jobs:
       - name: 上传到 Release
         uses: softprops/action-gh-release@v2
         with:
-          files: app/build/app/outputs/flutter-apk/app-release.apk
-          name: kmlab-toolbox.apk
+          # ⚠️ `|` 后面是**资产名** —— 自动更新清单里的稳定直链依赖它
+          #    （releases/latest/download/kmlab-toolbox.apk）
+          #    ⚠️ `name:` 是 Release 的标题，不是资产名（踩过：资产名会变成 app-release.apk）
+          files: app/build/app/outputs/flutter-apk/app-release.apk|kmlab-toolbox.apk
+          name: kmlab Toolbox
           body: |
             kmlab Toolbox（versionCode 见 `app/pubspec.yaml`）
 
