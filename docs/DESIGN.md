@@ -1054,7 +1054,18 @@ flutter test integration_test/app_smoke_test.dart -d emulator-5554
 - **启动时自动**：远端配置到位后静默检查 → 发现新版主动弹一次（不重复打扰）
 - **手动**：「我的 → 配置 → 检查更新」
 
-**APK 本体不由 App 托管** —— 清单里的 `url` 指向哪里由发布方决定（站点静态目录 / 对象存储 / 网盘直链都行）。App 只负责「查 → 提示 → 装」。
+**APK 本体不由 App 托管** —— 清单里的 `url` 指向哪里由发布方决定。**默认用 GitHub Releases**：
+
+```
+https://github.com/<owner>/<repo>/releases/latest/download/kmlab-toolbox.apk
+```
+
+选它的三个理由：
+1. **APK 不进 git 历史** —— 53MB 一个版本塞进仓库，几十个版本就是几个 GB。
+2. **`releases/latest/download/` 是稳定直链** —— 清单里写一次，以后每次发版只换 Release 里的资产，**清单不用改**。
+3. 不用自建对象存储、不用备案域名、不用另外的服务。
+
+发版：`scripts/publish-release.sh`（出包 → 发 Release → 更新清单）；或 push 一个 `v*` tag 让 `.github/workflows/release.yml` 自动做（Actions 自带 `GITHUB_TOKEN`，不需要个人 token）。
 
 ### 5.11 App 级数据管理（导出全部 / 导入 / 清除全部）
 

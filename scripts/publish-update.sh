@@ -48,9 +48,9 @@ VER_CODE="${VERSION##*+}"
 SIZE="$(stat -f%z "$APK" 2>/dev/null || stat -c%s "$APK")"
 BASENAME="$(basename "$APK")"
 
-# 默认下载地址：站点静态目录下的固定名（这样每次更新都覆盖同一个 URL）
+# 默认下载地址：GitHub Releases 的稳定直链（每次发版都覆盖同一个 URL）
 if [ -z "$URL" ]; then
-  URL="https://kmlab.tech/download/kmlab-toolbox.apk"
+  URL="https://github.com/${KMLAB_GH_REPO:-vee2046/webview_app}/releases/latest/download/kmlab-toolbox.apk"
 fi
 
 OUT="$ROOT/../kmlab_site/public/data/update.json"

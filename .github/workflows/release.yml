@@ -1,0 +1,44 @@
+name: release
+
+# push 一个 tag 就自动出包 + 发 GitHub Release（不需要任何个人 token ——
+# Actions 自带 GITHUB_TOKEN）。
+#
+#   git tag v0.1.15 && git push origin v0.1.15
+#
+# 产物会作为 Release 资产上传，资产名固定 `kmlab-toolbox.apk`
+# —— 自动更新清单里的 URL 依赖这个名字，别改。
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.9'
+          channel: stable
+
+      - name: 出包
+        run: |
+          cd app
+          flutter pub get
+          flutter build apk --release
+
+      - name: 上传到 Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: app/build/app/outputs/flutter-apk/app-release.apk
+          name: kmlab-toolbox.apk
+          body: |
+            kmlab Toolbox（versionCode 见 `app/pubspec.yaml`）
+
+            下载直链（自动更新清单就用这个）：
+            https://github.com/${{ github.repository }}/releases/latest/download/kmlab-toolbox.apk
