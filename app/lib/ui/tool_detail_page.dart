@@ -24,6 +24,7 @@ import '../data/share_image.dart';
 import '../data/usage_store.dart';
 import '../icons/doodle_icons.dart';
 import '../model/app_config.dart';
+import '../version.dart';
 import '../theme/paper_theme.dart';
 import '../util/native_toast.dart';
 import '../webview/km_bridge.dart';
@@ -513,7 +514,7 @@ class _ToolDetailPageState extends State<ToolDetailPage>
     final payload = <String, dynamic>{
       'toolId': widget.tool.id,
       'title': widget.tool.title,
-      'version': widget.config.about.version,
+      'version': kAppVersion,
       'exportedAt': DateTime.now().toIso8601String(),
       'storage': snapshot,
     };

@@ -20,6 +20,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../model/app_config.dart';
+import '../version.dart';
 import '../theme/paper_theme.dart';
 import '../util/native_toast.dart';
 import 'usage_store.dart';
@@ -61,7 +62,7 @@ class AppDataTransfer {
       'kind': 'app-wide',
       'app': config.app.name,
       'appName': config.app.appName,
-      'version': config.about.version,
+      'version': kAppVersion,
       'exportedAt': DateTime.now().toIso8601String(),
       ...usage.exportPayload(),
     };

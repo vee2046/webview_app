@@ -11,6 +11,7 @@ import '../data/share_image.dart';
 import '../data/usage_store.dart';
 import '../icons/doodle_icons.dart';
 import '../model/app_config.dart';
+import '../version.dart';
 import '../theme/paper_theme.dart';
 import '../util/native_toast.dart';
 import 'share_preview_dialog.dart';
@@ -311,12 +312,12 @@ class _SettingsPageState extends State<SettingsPage> {
           logoPath: app.icon,
           appName: app.appName,
           brandSub: app.brandSub,
-          version: widget.config.about.version,
+          version: kAppVersionLabel,
         ),
         const SizedBox(height: 10),
         PaperSettingTile(
           icon: 'star',
-          title: '${app.appName} · v${widget.config.about.version}',
+          title: '${app.appName} · v$kAppVersionLabel',
           description: widget.config.about.note,
           value: widget.config.about.site,
         ),

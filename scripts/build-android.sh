@@ -35,20 +35,71 @@ for arg in "$@"; do
   esac
 done
 
-echo "▸ 1/3 静态检查（flutter analyze）"
+# ── 版本号自动递增 ──────────────────────────────────────────────
+# 每次出包都必须让版本号变，否则手机会当成「同一个版本」→ 装不上 / 还是旧包，
+# 看起来就像「改了没效果」（踩过：版本号一直卡在 0.1.0+1，连出好几个包）。
+#   versionName  x.y.z   → patch 位 +1（0.1.0 → 0.1.1）
+#   versionCode  +N      → +1（Android 覆盖升级必须严格递增）
+# 同时重新生成 app/lib/version.dart，让 App 里的「关于」显示真实包版本。
+echo "▸ 0/4 递增版本号"
+python3 - "$ROOT" << 'PYVER'
+import io, re, sys
+root = sys.argv[1]
+p = root + '/app/pubspec.yaml'
+t = io.open(p, encoding='utf-8').read()
+m = re.search(r'^version:\s*(\d+)\.(\d+)\.(\d+)\+(\d+)\s*$', t, re.M)
+if not m:
+    raise SystemExit('❌ pubspec.yaml 里找不到 version: x.y.z+N')
+ma, mi, pa, bn = (int(x) for x in m.groups())
+pa += 1
+bn += 1
+new = '%d.%d.%d+%d' % (ma, mi, pa, bn)
+t = t[:m.start()] + 'version: ' + new + t[m.end():]
+io.open(p, 'w', encoding='utf-8').write(t)
+
+label = '%d.%d.%d (%d)' % (ma, mi, pa, bn)
+lib = root + '/app/lib/version.dart'
+content = '''// ⚠️ 本文件由 `scripts/build-android.sh` **自动生成**，请勿手改。
+//
+// 每次出包前脚本会：
+//   1. 递增 `app/pubspec.yaml` 的 version（`x.y.z+N` → patch 位 +1、build 号 +1）
+//      —— Android 的 versionCode / versionName 与 iOS 的 CFBundleVersion /
+//         CFBundleShortVersionString 都来自这里，所以**版本号一变，安装包就能覆盖升级**。
+//   2. 重新生成本文件。
+//
+// 为什么要自动递增：之前版本号一直卡在 0.1.0+1，连着出好几个包，
+// 装到手机上系统会当成「同一个版本」→ 装不上 / 还是旧包 → 看起来像「改了没效果」。
+library;
+
+/// 版本名（用户可见），如 `0.1.1`。
+const String kAppVersion = '%d.%d.%d';
+
+/// 构建号（Android versionCode / iOS CFBundleVersion），每次出包 +1。
+const int kAppBuild = %d;
+
+/// 完整标签（用户可见），如 `0.1.1 (2)`。
+const String kAppVersionLabel = '$kAppVersion ($kAppBuild)';
+''' % (ma, mi, pa, bn)
+# ⚠️ 内容先算好再写文件 —— io.open(p,'w') 会**先截断**，格式化抛错就把文件清空了（踩过）
+io.open(lib, 'w', encoding='utf-8').write(content)
+print('   版本号 → %s' % label)
+PYVER
+
+echo
+echo "▸ 1/4 静态检查（flutter analyze）"
 flutter analyze
 
 if [ "$SKIP_TESTS" -eq 0 ]; then
   echo
-  echo "▸ 2/3 单元测试（flutter test）"
+  echo "▸ 2/4 单元测试（flutter test）"
   flutter test
 else
   echo
-  echo "▸ 2/3 单元测试（已跳过）"
+  echo "▸ 2/4 单元测试（已跳过）"
 fi
 
 echo
-echo "▸ 3/3 构建 $MODE APK（flutter build apk --$MODE）"
+echo "▸ 3/4 构建 $MODE APK（flutter build apk --$MODE）"
 flutter build apk --"$MODE"
 
 APK="$ROOT/app/build/app/outputs/flutter-apk/app-$MODE.apk"

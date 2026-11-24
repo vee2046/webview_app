@@ -184,13 +184,23 @@ class _RootShellState extends State<RootShell> {
           });
         }
 
-        return Scaffold(
+        // ⚠️ 系统返回手势（Android 手势导航的左边缘滑动）与硬件返回键，
+        //    在根路由上都必须走**同一套逻辑** —— 否则在开了手势导航的机型上，
+        //    我们的边缘手势会被系统吃掉，用户只看到「滑了没反应」，
+        //    而系统 back 会直接把 App 关掉（根路由的默认行为）。
+        return PopScope(
+          canPop: false,
+          onPopInvokedWithResult: (didPop, _) {
+            if (didPop) return;
+            _handleBack(config, viaSwipe: false);
+          },
+          child: Scaffold(
           backgroundColor: context.paper.paper,
           body: SafeArea(
             bottom: false,
             // 左边缘右滑 = 返回（小工具/我的 → 最近；最近 → 再划一次退出）
             child: EdgeBackGesture(
-              onBack: () => _handleEdgeBack(config),
+              onBack: () => _handleBack(config, viaSwipe: true),
               child: IndexedStack(
               index: _index.clamp(0, nav.isEmpty ? 0 : nav.length - 1),
               children: [
@@ -235,16 +245,18 @@ class _RootShellState extends State<RootShell> {
             index: _index,
             onTap: (i) => setState(() => _index = i),
           ),
+          ),
         );
       },
     );
   }
 
-  /// 左边缘右滑 = 返回。
+  /// 「返回」的唯一入口 —— 边缘右滑、系统返回手势、硬件返回键都走这里。
   ///
   /// - 不在「最近」页 → 切回「最近」页
-  /// - 已在「最近」页 → 第一次提示「再划一次退出」，3 秒内再划一次才退出 App
-  void _handleEdgeBack(AppConfig config) {
+  /// - 已在「最近」页 → 第一次提示「再划一次退出 / 再按一次退出」，
+  ///   3 秒内再来一次才退出 App
+  void _handleBack(AppConfig config, {required bool viaSwipe}) {
     final nav = config.app.bottomNav;
     final recentId =
         config.app.recent.isDefaultTab == true ? 'recent' : 'tools';
@@ -268,7 +280,7 @@ class _RootShellState extends State<RootShell> {
       const Duration(seconds: _exitConfirmWindow),
       () => _exitArmed = false,
     );
-    NativeToast.show(context, '再划一次退出');
+    NativeToast.show(context, viaSwipe ? '再划一次退出' : '再按一次退出');
   }
 
   void _selectTab(AppConfig config, String id) {

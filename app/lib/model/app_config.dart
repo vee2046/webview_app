@@ -700,26 +700,22 @@ class BridgeConfig {
 
 class AboutConfig {
   const AboutConfig({
-    required this.version,
     required this.repo,
     required this.site,
     required this.note,
   });
 
-  final String version;
   final String repo;
   final String site;
   final String note;
 
   factory AboutConfig.fromJson(Map<String, dynamic> json) => AboutConfig(
-        version: json['version'] as String? ?? '0.0.0',
         repo: json['repo'] as String? ?? '',
         site: json['site'] as String? ?? '',
         note: json['note'] as String? ?? '',
       );
 
   Map<String, dynamic> toJson() => {
-        'version': version,
         'repo': repo,
         'site': site,
         'note': note,
@@ -1250,7 +1246,6 @@ class AppConfig {
       about: json['about'] is Map<String, dynamic>
           ? AboutConfig.fromJson(json['about'] as Map<String, dynamic>)
           : const AboutConfig(
-              version: '0.0.0',
               repo: '',
               site: '',
               note: '',

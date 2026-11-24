@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 import '../model/app_config.dart';
+import '../version.dart';
 import 'km_bridge.dart';
 
 /// WebView 容器。
@@ -248,7 +249,7 @@ class WebViewHostState extends State<WebViewHost> {
       if (bridge.enabled) {
         await _js(KmBridge.injectionScript(
           permissions: bridge.permissions,
-          version: widget.config.about.version,
+          version: kAppVersion,
           theme: widget.config.app.theme,
         ), 'bridge 壳');
       }
@@ -271,7 +272,7 @@ class WebViewHostState extends State<WebViewHost> {
       // 注册结果从页面里直读（不靠 channel —— 那条路在 iOS 上可能不通）
       if (probe) await _probeServiceWorker();
       if (bridge.enabled) {
-        await _js(KmBridge.readyScript(widget.config.about.version), 'ready 事件');
+        await _js(KmBridge.readyScript(kAppVersion), 'ready 事件');
       }
       debugPrint('[WebView] _injectBridge 完成');
     } catch (e) {
