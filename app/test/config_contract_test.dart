@@ -19,6 +19,7 @@ import 'package:kmlab_toolbox/model/app_config.dart';
 /// 用**路径**判定（不是 key 名），免得和正常字段撞名。
 const List<String> _freeFormPaths = [
   'app.brandSource', // 品牌溯源表：site / siteName / brandSub / …
+  'app.icons.paths', // doodle 图标路径表：图标名 → SVG 片段（键是图标名，不是配置字段）
   'tools.[].resume.extract.names', // 游戏代码 → 中文名（A~E）
 ];
 
