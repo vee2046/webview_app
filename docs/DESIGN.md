@@ -1040,7 +1040,10 @@ flutter test integration_test/app_smoke_test.dart -d emulator-5554
 
 | 环节 | 实现 |
 |---|---|
-| 清单 | `https://kmlab.tech/data/update.json`，由 `scripts/publish-update.sh` 生成 |
+| 清单 | **GitHub Release 里的 `update.json`**（和 APK 同一个 Release，版本永远一致）
+|  | → `https://github.com/vee2046/webview_app/releases/latest/download/update.json`
+|  | workflow 按 `pubspec.yaml` 自动生成并作为资产上传；`scripts/publish-update.sh` 也能手动生成 |
+|  | ⚠️ **不要放 kmlab.tech** —— 那样站点不部署就永远拉不到（实测踩过） |
 | 版本比较 | 远端 `versionCode` > 本机 `kAppBuild`（`version.dart`，跟安装包里的一致） |
 | 拉取失败 | **静默** —— 离线 / 404 / 返回 HTML（SPA 兜底）都当「没有更新」，不打扰用户 |
 | 下载 | Dart 侧用已有的 `http` 依赖流式下载到缓存目录 `updates/`，带进度条 |
