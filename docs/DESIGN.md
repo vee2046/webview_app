@@ -1069,6 +1069,22 @@ https://github.com/<owner>/<repo>/releases/latest/download/kmlab-toolbox.apk
 
 **已落地**：`github.com/vee2046/webview_app`（Public），`./scripts/init-github.sh --release` 一条命令搞定。
 
+#### 图标也外置了（数据分离彻底）
+
+图标的**名字**早就是数据（`tools[].icon`），但**长相**原来硬编码在 Dart 里 ⇒ 站点新增一种 doodle，App 就得重新打包。
+
+现在 `app.icons.paths`（名字 → SVG 片段，约 2KB）也进了远端配置：
+
+| | 原来 | 现在 |
+|---|---|---|
+| 站点新增**工具** | 改 json（不用打包）✅ | 改 json（不用打包）✅ |
+| 站点新增**分类** | 改 json（不用打包）✅ | 改 json（不用打包）✅ |
+| 站点新增**doodle 图标** | **要重新打包** ❌ | 改 json（不用打包）✅ |
+
+Dart 侧用**全局注册表**（`DoodleIcons.install(paths)`）而不是把 paths 层层往下传 —— 否则 6 个 `DoodleIcon(...)` 调用点全要改，以后每加一个页面就多一处。远端没这个图标时回退到内置表（首次启动还没拉到配置时用）。
+
+⇒ **站点加工具 / 加分类 / 加图标，现在都只改 json，App 不用重新打包。**
+
 #### 踩过的三个坑
 
 1. **`softprops/action-gh-release` 的 `name:` 是 Release 标题，不是资产名** —— 不写清楚，资产会叫 `app-release.apk`，清单里的 `releases/latest/download/kmlab-toolbox.apk` 直接 404。

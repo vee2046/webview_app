@@ -6,6 +6,7 @@ import 'config/config_store.dart';
 import 'data/update_checker.dart';
 import 'data/usage_store.dart';
 import 'data/view_prefs.dart';
+import 'icons/doodle_icons.dart';
 import 'theme/paper_theme.dart';
 import 'ui/root_shell.dart';
 
@@ -33,9 +34,13 @@ Future<void> main() async {
 
   // 首屏已经用内置快照渲染出来了，后台再静默拉远端配置。
   unawaited(configStore.bootstrap().then((_) async {
-    // 远端配置到位后再查更新 —— 这样 updateUrl 也是最新的那一份。
     final cfg = configStore.config;
-    if (cfg != null) await updateStore.check(cfg.remote);
+    if (cfg == null) return;
+    // 远端配置里的 doodle 路径表装进全局注册表 ——
+    // 站点新增一种图标，App 不用重新打包就能显示。
+    DoodleIcons.install(cfg.app.icons.paths);
+    // 远端配置到位后再查更新 —— 这样 updateUrl 也是最新的那一份。
+    await updateStore.check(cfg.remote);
   }));
 }
 

@@ -49,8 +49,10 @@ SIZE="$(stat -f%z "$APK" 2>/dev/null || stat -c%s "$APK")"
 BASENAME="$(basename "$APK")"
 
 # 默认下载地址：GitHub Releases 的稳定直链（每次发版都覆盖同一个 URL）
+# 默认：GitHub Releases 上的**清单**（和 APK 在同一个 Release 里）
+#   —— 不依赖 kmlab_site 是否部署过
 if [ -z "$URL" ]; then
-  URL="https://github.com/${KMLAB_GH_REPO:-vee2046/webview_app}/releases/latest/download/kmlab-toolbox.apk"
+  URL="https://github.com/${KMLAB_GH_REPO:-vee2046/webview_app}/releases/latest/download/update.json"
 fi
 
 OUT="$ROOT/../kmlab_site/public/data/update.json"

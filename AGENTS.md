@@ -115,7 +115,12 @@ flutter test integration_test/app_smoke_test.dart -d emulator-5554   # Android �
 
 ---
 
-## 6. 分类与图标：不要手工抄
+## 6. 分类与图标：不要手工抄，也不用打包
+
+> **站点加工具 / 加分类 / 加图标，现在都只改 json，App 不用重新打包。**
+> 图标的 SVG 片段也在远端配置里（`app.icons.paths`），Dart 侧用全局注册表
+> `DoodleIcons.install(config.app.icons.paths)` 装载。
+
 
 站点的分类和手绘图标是**关键词规则**驱动的（`kmlab_site/src/lib/project.ts` → `categoryOf()` / `doodleOf()`）：
 

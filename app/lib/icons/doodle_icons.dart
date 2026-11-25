@@ -110,8 +110,30 @@ const Map<String, String> _ui = {
 };
 
 /// 取得 doodle 的 SVG 源码；未知名字回退到 `box`（与 kmlab_site 的 `doodleDefault` 一致）
+/// 远端配置里的 doodle 路径表（`app.icons.paths`）。
+///
+/// **为什么要它** —— 图标的「名字」早就是数据（`tools[].icon`），
+/// 但图标的「长相」原来硬编码在 Dart 里 ⇒ 站点新增一种 doodle，
+/// App 就得**重新打包**才能显示。把 SVG 片段也搬进远端配置之后，
+/// 站点加工具 / 加图标都只改 json，App 不用动。
+///
+/// 用**全局注册表**而不是把 paths 一层层往下传 ——
+/// 那样 6 个 `DoodleIcon(...)` 调用点全要改，而且以后每加一个页面就多一处。
+class DoodleIcons {
+  DoodleIcons._();
+
+  /// 远端路径表；空 = 还没拉到配置（首次启动）→ 用内置兜底。
+  static Map<String, String> remotePaths = const {};
+
+  /// 安装远端路径表（配置加载完调用；远端配置到达后要再调一次）。
+  static void install(Map<String, String> paths) {
+    remotePaths = paths;
+  }
+}
+
 String doodleSvg(String name, {required Color color}) {
-  final body = _doodles[name] ?? _doodles['box']!;
+  final remote = DoodleIcons.remotePaths[name];
+  final body = remote ?? _doodles[name] ?? _doodles['box']!;
   return '''
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none"
      stroke="rgb(${color.r},${color.g},${color.b})" stroke-width="2.6"

@@ -37,6 +37,32 @@ jobs:
           cd app/build/app/outputs/flutter-apk
           mv app-release.apk kmlab-toolbox.apk
 
+      - name: 生成自动更新清单
+        run: |
+          # 清单和 APK 放在**同一个 Release** 里 —— 版本号永远一致，
+          # 而且不依赖 kmlab_site 是否部署过（清单是 App 自己的发布渠道）。
+          cd app
+          VER="$(grep -E '^version:' pubspec.yaml | head -1 | sed 's/^version:[[:space:]]*//' | tr -d ' ')"
+          NAME="${VER%%+*}"
+          CODE="${VER##*+}"
+          cd ..
+          python3 - "$NAME" "$CODE" << 'PY'
+          import io, json, sys, datetime, os
+          name, code = sys.argv[1], sys.argv[2]
+          apk = 'app/build/app/outputs/flutter-apk/kmlab-toolbox.apk'
+          size = os.path.getsize(apk) if os.path.exists(apk) else 0
+          data = {
+              'versionCode': int(code),
+              'versionName': name,
+              'url': 'https://github.com/vee2046/webview_app/releases/latest/download/kmlab-toolbox.apk',
+              'size': size,
+              'note': 'kmlab Toolbox ' + name,
+              'publishedAt': datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
+              'fileName': 'kmlab-toolbox.apk',
+          }
+          io.open('update.json', 'w', encoding='utf-8').write(json.dumps(data, ensure_ascii=False, indent=2) + '\n')
+          PY
+
       - name: 上传到 Release
         uses: softprops/action-gh-release@v2
         with:
@@ -45,7 +71,9 @@ jobs:
           # ⚠️ `name:` 是 Release 的**标题**，不是资产名（踩过）
           # ⚠️ `files:` 里的 `|` 改名语法实测没生效（资产根本没上传），所以改成
           #    上传前先把文件改名，最稳
-          files: app/build/app/outputs/flutter-apk/kmlab-toolbox.apk
+          files: |
+            app/build/app/outputs/flutter-apk/kmlab-toolbox.apk
+            update.json
           name: kmlab Toolbox
           body: |
             kmlab Toolbox（versionCode 见 `app/pubspec.yaml`）

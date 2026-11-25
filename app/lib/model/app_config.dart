@@ -972,22 +972,34 @@ class IconsManifest {
     required this.source,
     required this.names,
     required this.defaultIcon,
+    this.paths = const {},
   });
 
   final String source;
   final List<String> names;
   final String defaultIcon;
 
+  /// 图标名 → SVG 片段（64×64 viewBox 的子元素）。
+  ///
+  /// 有了它，**站点新增一种 doodle 不需要重新打包 App** ——
+  /// 图标的「长相」也变成数据了（原来只有「名字」是数据）。
+  final Map<String, String> paths;
+
   factory IconsManifest.fromJson(Map<String, dynamic> json) => IconsManifest(
         source: json['source'] as String? ?? '',
         names: (json['names'] as List?)?.cast<String>() ?? const [],
         defaultIcon: json['default'] as String? ?? 'box',
+        paths: (json['paths'] as Map?)?.map(
+              (k, v) => MapEntry(k.toString(), v.toString()),
+            ) ??
+            const {},
       );
 
   Map<String, dynamic> toJson() => {
         'source': source,
         'names': names,
         'default': defaultIcon,
+        'paths': paths,
       };
 }
 

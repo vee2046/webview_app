@@ -181,6 +181,10 @@ class _RootShellState extends State<RootShell> {
         }
         final nav = config.app.bottomNav;
 
+        // 配置更新（远端热更）后把新的 doodle 路径表装上 ——
+        // 站点加了新图标，这里立刻生效，不用等下次发版。
+        DoodleIcons.install(config.app.icons.paths);
+
         // ── 自动更新：发现新版就主动问一次 ────────────────────
         // 静默检查在 main.dart 里做（远端配置到位后才查），
         // 这里负责「发现了 → 弹窗问用户」。
