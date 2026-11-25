@@ -57,6 +57,7 @@ TAB_ICONS = {
     'productivity': 'check',
     'knowledge': 'book',
     'entertainment': 'podcast',
+    'news': 'note',
     'misc': 'box',
 }
 

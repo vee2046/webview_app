@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-24T07:11:14Z",
+  "generatedAt": "2026-11-25T03:17:50Z",
   "app": {
     "id": "kmlab-toolbox",
     "name": "kmlab",
@@ -113,6 +113,12 @@
         "title": "娱乐",
         "icon": "podcast",
         "color": "#d9a441"
+      },
+      {
+        "id": "news",
+        "title": "资讯",
+        "icon": "note",
+        "color": "#3d6b8a"
       },
       {
         "id": "misc",
@@ -590,6 +596,47 @@
         },
         "summary": "还没有访问过"
       }
+    },
+    {
+      "id": "nexttoken",
+      "title": "NextToken",
+      "subtitle": "支持视频的技术博客 · 每日资讯",
+      "icon": "note",
+      "tab": "news",
+      "color": "#3d6b8a",
+      "url": "https://nexttoken.tv/",
+      "offline": {
+        "enabled": false
+      },
+      "open": {
+        "titleBar": true,
+        "pullToRefresh": true,
+        "chrome": "minimal",
+        "routeBackEnabled": false,
+        "backFallback": "home",
+        "overflowItems": [
+          "reload",
+          "copyLink",
+          "openInBrowser",
+          "share",
+          "fullscreen",
+          "pin",
+          "about",
+          "feedback"
+        ]
+      },
+      "featured": false,
+      "sort": 100,
+      "enabled": true,
+      "resume": {
+        "enabled": false,
+        "mode": "none",
+        "storageKeys": [],
+        "extract": {
+          "kind": "none"
+        },
+        "summary": "还没有访问过"
+      }
     }
   ],
   "webview": {
@@ -692,5 +739,5 @@
     "site": "https://kmlab.tech",
     "note": "数据保存在本机浏览器存储，不上传服务器"
   },
-  "signature": "ec9d9ae76ac23e132cae2dd5b5092f28bbab1d04b6361e554c736b044f30d109"
+  "signature": "16cd2cf8dac8db9ea2c360d231429d22e1677a84139896f71d85ded90babf2a3"
 }

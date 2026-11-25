@@ -23,8 +23,8 @@ void main() {
   final reader = ResumeReader();
 
   group('配置本身', () {
-    test('9 个工具', () {
-      expect(config.tools.length, 9);
+    test('10 个工具', () {
+      expect(config.tools.length, 10);
     });
 
     test('app.tabs 是分类的唯一真相源', () {
